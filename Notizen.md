@@ -13,7 +13,7 @@
 - Rest API callen
 - JSON
 
-## Star Entity
+## Star/SOL Entity
 
 - die eigene <COM-UUID> und ja, die muss selbst berechnet werden
 - Zeitstempel der Initiierung des Sterns
