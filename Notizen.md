@@ -2,6 +2,7 @@
 
 [slog: Libary fuer structured logging](https://betterstack.com/community/guides/logging/logging-in-go/) \
 slog ist glaube ich fuer uns super geignet. Ist in der Standard Libary drinne. Und kann automatisch an jede logmessage sowas wie die IP des servers, die unterschiedlichen UUIDs der Prozesse oder den Status des Prozesses im Stern anhaengen, ohne das wir das bei jedem Aufruf von logger selber machen muessen
+mit [der libary](https://github.com/samber/slog-multi#broadcast-slogmultifanout) um multilog zu ermoeglichen
 
 [Gin: HTTP Framework und JSON parser](https://gin-gonic.com/) \
 scheint gut zu sein und arbeit abzunehmen, ohne dass es spring ist. Es ist zwar moeglich einen HTTP Server mit REST API nur mithilfe der stdlib zu erstellen. Aber ich fand den Syntax mit Gin einwenig netter. Es _soll_ woll auch direkt JSON parsen/validieren. Zum Thema JSON hat uns Kossakowski ja allen stark ans herz gelegt schon was bestehendes fuer JSON zu nutzen
@@ -9,8 +10,9 @@ scheint gut zu sein und arbeit abzunehmen, ohne dass es spring ist. Es ist zwar 
 # TODO
 
 - [ ] Gin nutzen
-- [ ] Auf slog umstellen
+- [ ] Auf slog umstellen!
 - [ ] Refactor?
+- [ ] Workspaces/Go module structure?
 
 # Generell
 
@@ -18,7 +20,6 @@ scheint gut zu sein und arbeit abzunehmen, ohne dass es spring ist. Es ist zwar 
 - Befehele
   - Crash
   - Exit
-- Syslog aus altem Ding
 
 # Was muss wer machen?
 
