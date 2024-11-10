@@ -12,8 +12,7 @@ import (
 	"github.com/Lars5Janssen/vsp/net"
 )
 
-// Gin, slog initialize
-// channels fuer thread-com init
+// TODO better logging currently all is manually set = bad (component string in every file but main.go)
 func main() {
 	// Parse command-line arguments
 	port := flag.Int("port", 8006, "Port to run the server on")
@@ -21,61 +20,38 @@ func main() {
 	flag.Parse()
 
 	// Logger
+	// It may be better for every component to modify this logger for themselfs
 	//group := slog.Group("UUID", utils.getUUID())
-	logger := slog.Default() //.With(group)
+	log := slog.Default() //.With(group)
 
 	// Channels, Contexts & WaitGroup (Thread Stuff)
 	// Channels:
-	// Input -> Main (wegen Loop) -> change to ctx
-	// Input -> Worker
-	// TCP -> Worker
-	// UDP -> SOL/Main
-	inputMain := make(chan bool)
-	InputWorker := make(chan string)
-	tcpWorker := make(chan *gin.Context) // Maybe make this a map (Endpoint -> gin.Context)
-	udpMainSol := make(chan string)
-	testCTX := context.Background()
-	ctxWC, cancel := context.WithCancel(testCTX) // To cancel... Needs testing
+	//inputMain := make(chan bool)         // Input -> Main (wegen Loop) -> change to ctx
+	InputWorker := make(chan string)     // Input -> Worker
+	udpMainSol := make(chan string)      // UDP -> SOL/Main
+	tcpWorker := make(chan *gin.Context) // TCP -> Worker.
+	//                                      Maybe make the TCP channel a map (Endpoint -> gin.Context)
+	// Contexts:
+	udpCTX, udpCancel := context.WithCancel(context.Background())
+	workerCTX, workerCancel := context.WithCancel(context.Background())
+	// Wait Group:
 	wg := new(sync.WaitGroup)
-
-	// LOOP?
-	// START UDP WENN NICHT AN
-	// SEND HELLO
-	// WARTEN
-	// IF HABEN ANTWORT
-	// 		go comp.start(antwort, ...) // innerhalb von comp start von tcp
-	//		udp.close
-	// IF NOT
-	// 		go sol.start(udpchannel)
 	//test := <-tcpWorker
-	go net.StartServer(wg, logger, *port, tcpWorker)
-	go cmd.StartInput(wg, logger, inputMain, InputWorker)
 
-	// Loop Start
+	go net.StartServer(wg, log, *port, tcpWorker)
+	go cmd.StartInput(wg, log, InputWorker, workerCancel)
+
 	for rerun {
-		go net.ListenForBroadcastMessage(wg, ctxWC, logger, *port, udpMainSol)
-		net.SendHello(logger, *port)
-		response := <-udpMainSol
-		if response == "" {
-			cmd.StartSol(wg, logger)
+		go net.ListenForBroadcastMessage(udpCTX, wg, log, *port, udpMainSol)
+		net.SendHello(log, *port)
+		response := <-udpMainSol // blocking (on both ends)
+		if response == "" {      // "" might be a bad idea, as this may be sent by someone, so someone could force us to be sol
+			go cmd.StartSol(workerCTX, wg, log)
 		} else {
-			cancel()
-			cmd.StartComponent(wg, logger)
+			udpCancel()
+			go cmd.StartComponent(workerCTX, wg, log)
 		}
+		wg.Wait()
+		workerCancel() // TODO This is currently redundant
 	}
-
-	// Loop End
-
-	// Thread Modell
-	// 0: Main()
-	// 1: Sol ODER Com (Worker)
-	// 1.5: UDP-Server (Nur fuer Sol)
-	// 2: TCP-Server
-	// 3: Input
-	// GET CLI INPUT
-	// IF "CRASH"
-	// ZU MAIN ein TRUE
-	// ELSE IF "EXIT"
-	// ZUM WORKER THREAD
-
 }
