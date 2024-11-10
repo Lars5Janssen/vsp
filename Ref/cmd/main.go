@@ -58,7 +58,7 @@ func checkUserInput() {
 }
 
 func getLocalIP() (net.IP, error) {
-	conn, err := net.Dial("udp", "8.8.8.8:80")
+	conn, err := net.Dial("net", "8.8.8.8:80")
 	if err != nil {
 		log.Fatal(err)
 	}

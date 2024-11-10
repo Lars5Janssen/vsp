@@ -7,7 +7,7 @@ import (
 )
 
 func SendBroadcastMessage(port int) error {
-	conn, err := net.DialUDP("udp", nil, &net.UDPAddr{
+	conn, err := net.DialUDP("net", nil, &net.UDPAddr{
 		IP:   net.IPv4bcast,
 		Port: port,
 	})
@@ -37,7 +37,7 @@ func ListenForBroadcastMessage(port int) error {
 		Port: port,
 	}
 
-	conn, err := net.ListenUDP("udp", &addr)
+	conn, err := net.ListenUDP("net", &addr)
 	if err != nil {
 		return fmt.Errorf("failed to listen on UDP port: %w", err)
 	} else {
