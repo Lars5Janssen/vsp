@@ -63,4 +63,6 @@ func ListenForBroadcastMessage(
 	wg.Add(1)
 	defer wg.Done()
 	log = log.With(slog.String("Component", "UDP"))
+	// Send to channel:
+	// channel <- "Test"
 }

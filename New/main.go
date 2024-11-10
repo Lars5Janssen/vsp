@@ -13,6 +13,10 @@ import (
 )
 
 // TODO better logging currently all is manually set = bad (component string in every file but main.go)
+// TODO Buffered Channels for commands
+// TODO test relation between "ctx.WithCancel" and "defer wg.Done()". Does a cancelation still execute the wg.Done() function?
+// TODO Maybe make the TCP channel a map (Endpoint -> gin.Context)
+// TODO Better words to differentiate between components in the program and component as a thing in the networkstructure
 func main() {
 	// Parse command-line arguments
 	port := flag.Int("port", 8006, "Port to run the server on")
@@ -24,19 +28,26 @@ func main() {
 	//group := slog.Group("UUID", utils.getUUID())
 	log := slog.Default() //.With(group)
 
+	log.Info(
+		"Start of program",
+		slog.String("Component", "Main"),
+		slog.Int("Port", *port),
+		slog.Bool("ReRun?", rerun),
+	)
+
 	// Channels, Contexts & WaitGroup (Thread Stuff)
 	// Channels:
 	//inputMain := make(chan bool)         // Input -> Main (wegen Loop) -> change to ctx
 	InputWorker := make(chan string)     // Input -> Worker
 	udpMainSol := make(chan string)      // UDP -> SOL/Main
 	tcpWorker := make(chan *gin.Context) // TCP -> Worker.
-	//                                      Maybe make the TCP channel a map (Endpoint -> gin.Context)
+	//                                      TODO Maybe make the TCP channel a map (Endpoint -> gin.Context)
+	//                                      TODO Make some of the channels buffered?
 	// Contexts:
 	udpCTX, udpCancel := context.WithCancel(context.Background())
 	workerCTX, workerCancel := context.WithCancel(context.Background())
 	// Wait Group:
 	wg := new(sync.WaitGroup)
-	//test := <-tcpWorker
 
 	go net.StartServer(wg, log, *port, tcpWorker)
 	go cmd.StartInput(wg, log, InputWorker, workerCancel)
@@ -46,12 +57,13 @@ func main() {
 		net.SendHello(log, *port)
 		response := <-udpMainSol // blocking (on both ends)
 		if response == "" {      // "" might be a bad idea, as this may be sent by someone, so someone could force us to be sol
-			go cmd.StartSol(workerCTX, wg, log)
+			go cmd.StartSol(workerCTX, wg, log, InputWorker, tcpWorker, udpMainSol)
 		} else {
 			udpCancel()
-			go cmd.StartComponent(workerCTX, wg, log)
+			go cmd.StartComponent(workerCTX, wg, log, InputWorker, tcpWorker)
 		}
+		workerCTX.Done()
 		wg.Wait()
-		workerCancel() // TODO This is currently redundant
 	}
+	log.Info("Exiting")
 }
