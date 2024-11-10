@@ -2,11 +2,15 @@ package net
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"log/slog"
+	"sync"
+
+	"github.com/gin-gonic/gin"
 )
 
-func StartServer(logger *slog.Logger, port int, channel chan *gin.Context) {
+func StartServer(wg *sync.WaitGroup, logger *slog.Logger, port int, channel chan *gin.Context) {
+	wg.Add(1)
+	defer wg.Done()
 	router := gin.Default()
 	router.GET("/", func(c *gin.Context) {
 		channel <- c
