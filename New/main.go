@@ -37,10 +37,10 @@ func main() {
 
 	// Channels, Contexts & WaitGroup (Thread Stuff)
 	// Channels:
-	//inputMain := make(chan bool)         // Input -> Main (wegen Loop) -> change to ctx
 	InputWorker := make(chan string)     // Input -> Worker
 	udpMainSol := make(chan string)      // UDP -> SOL/Main
 	tcpWorker := make(chan *gin.Context) // TCP -> Worker.
+	workerTCP := make(chan *gin.Context) // TCP -> Worker.
 	//                                      TODO Maybe make the TCP channel a map (Endpoint -> gin.Context)
 	//                                      TODO Make some of the channels buffered?
 	// Contexts:
@@ -49,8 +49,8 @@ func main() {
 	// Wait Group:
 	wg := new(sync.WaitGroup)
 
-	go net.StartServer(wg, log, *port, tcpWorker)
-	go cmd.StartInput(wg, log, InputWorker, workerCancel)
+	go net.StartTCPServer(wg, log, *port, tcpWorker, workerTCP)
+	go cmd.StartUserInput(wg, log, InputWorker, workerCancel)
 
 	for rerun {
 		go net.ListenForBroadcastMessage(udpCTX, wg, log, *port, udpMainSol)

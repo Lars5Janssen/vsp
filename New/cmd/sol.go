@@ -23,7 +23,6 @@ func StartSol(
 	// SOL Logic
 	// Retrieve from channels:
 	// command := <-commands
-	// tcpRequest := <-tcp
 	// udpInput := <-udp
 
 }

@@ -8,14 +8,22 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func StartServer(wg *sync.WaitGroup, log *slog.Logger, port int, channel chan *gin.Context) {
+func StartTCPServer(
+	wg *sync.WaitGroup,
+	log *slog.Logger,
+	port int,
+	inputChannel chan *gin.Context,
+	outputChannel chan *gin.Context,
+) {
 	wg.Add(1)
 	defer wg.Done()
 	log = log.With(slog.String("Component", "TCP"))
 
 	router := gin.Default()
 	router.GET("/", func(c *gin.Context) {
-		channel <- c
+		inputChannel <- c   // Blocking
+		c = <-outputChannel // Blocking
+		// but its just a reference so may be unnecceary
 		//c.JSON(200, gin.H{
 		//	"message": "Hello, World!",
 		//})

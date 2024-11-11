@@ -24,6 +24,10 @@ func SendHello(log *slog.Logger, port int) error {
 	return err
 }
 
+func sendMessage(log *slog.Logger, addr net.IPAddr, port int, msg string) {
+	// log = log.With(slog.String("Component", "UDP"))
+}
+
 func sendBroadcastMessage(log *slog.Logger, port int, msg string) error {
 	log = log.With(slog.String("Component", "UDP"))
 	conn, err := net.DialUDP("udp", nil, &net.UDPAddr{

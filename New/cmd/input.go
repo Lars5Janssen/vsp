@@ -10,7 +10,7 @@ import (
 )
 
 // Starts the evaluation of User Input
-func StartInput(
+func StartUserInput(
 	wg *sync.WaitGroup,
 	log *slog.Logger,
 	// channelToMain chan bool,
