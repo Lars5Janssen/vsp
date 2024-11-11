@@ -3,24 +3,43 @@ package cmd
 import (
 	"context"
 	"log/slog"
-	"sync"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
+
+	n "github.com/Lars5Janssen/vsp/net"
 )
+
+var endpoints []n.Endpoint = []n.Endpoint{
+	// {[]string{"/exampleEndpoint", "/exampleEndpoint/"}, map[n.Method]n.Handler{
+	// 	n.GET:    test,
+	// 	n.DELETE: test,
+	// }},
+	{
+		Name: []string{"/exampleEndpoint2", "/exampleEndpoint2/"},
+		AcceptedMethods: map[n.Method]n.Handler{
+			n.GET:    test,
+			n.DELETE: test,
+		},
+	},
+}
+
+func test(r n.RestIn) n.RestOut {
+	body := gin.H{"message": "test"}
+	return n.RestOut{http.StatusOK, body}
+}
 
 func StartComponent(
 	ctx context.Context,
-	wg *sync.WaitGroup,
 	log *slog.Logger,
 	commands chan string,
-	tcp chan *gin.Context,
+	restIn chan n.RestIn,
+	restOut chan n.RestOut,
+
 ) {
-	wg.Add(1)
-	defer wg.Done()
 	log = log.With(slog.String("Component", "Component"))
 	log.Info("Starting as Component")
-	// Component Logic
-	// Retrive from channel:
-	// command := <-commands
-	// tcpRequest := <-tcp
+
+	n.AttendHTTP(log, restIn, restOut, endpoints) // Will Handle endpoints in this thread
+
 }

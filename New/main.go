@@ -4,7 +4,8 @@ import (
 	"context"
 	"flag"
 	"log/slog"
-	"sync"
+	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -37,33 +38,30 @@ func main() {
 
 	// Channels, Contexts & WaitGroup (Thread Stuff)
 	// Channels:
-	InputWorker := make(chan string)     // Input -> Worker
-	udpMainSol := make(chan string)      // UDP -> SOL/Main
-	tcpWorker := make(chan *gin.Context) // TCP -> Worker.
-	workerTCP := make(chan *gin.Context) // TCP -> Worker.
-	//                                      TODO Maybe make the TCP channel a map (Endpoint -> gin.Context)
-	//                                      TODO Make some of the channels buffered?
+	InputWorker := make(chan string) // Input -> Worker
+	udpMainSol := make(chan string)  // UDP -> SOL/Main
+	restIn := make(chan net.RestIn)
+	restOut := make(chan net.RestOut)
+
 	// Contexts:
 	udpCTX, udpCancel := context.WithCancel(context.Background())
 	workerCTX, workerCancel := context.WithCancel(context.Background())
-	// Wait Group:
-	wg := new(sync.WaitGroup)
 
-	go net.StartTCPServer(wg, log, *port, tcpWorker, workerTCP)
-	go cmd.StartUserInput(wg, log, InputWorker, workerCancel)
+	go net.StartTCPServer(log, *port, nil, restIn, restOut)
+	go cmd.StartUserInput(log, InputWorker, workerCancel)
 
 	for rerun {
-		go net.ListenForBroadcastMessage(udpCTX, wg, log, *port, udpMainSol)
+		go net.ListenForBroadcastMessage(udpCTX, log, *port, udpMainSol)
 		net.SendHello(log, *port)
 		response := <-udpMainSol // blocking (on both ends)
 		if response == "" {      // "" might be a bad idea, as this may be sent by someone, so someone could force us to be sol
-			go cmd.StartSol(workerCTX, wg, log, InputWorker, tcpWorker, udpMainSol)
+			go cmd.StartSol(workerCTX, log, InputWorker, udpMainSol, restIn, restOut)
 		} else {
 			udpCancel()
-			go cmd.StartComponent(workerCTX, wg, log, InputWorker, tcpWorker)
+			go cmd.StartComponent(workerCTX, log, InputWorker, restIn, restOut)
 		}
-		workerCTX.Done()
-		wg.Wait()
+		time.Sleep(1 * time.Hour)
 	}
 	log.Info("Exiting")
+	os.Exit(0)
 }

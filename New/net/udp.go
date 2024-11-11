@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"sync"
 	"time"
 )
 
@@ -59,13 +58,10 @@ func sendBroadcastMessage(log *slog.Logger, port int, msg string) error {
 
 func ListenForBroadcastMessage(
 	ctx context.Context,
-	wg *sync.WaitGroup,
 	log *slog.Logger,
 	port int,
 	channel chan string,
 ) {
-	wg.Add(1)
-	defer wg.Done()
 	log = log.With(slog.String("Component", "UDP"))
 	// Send to channel:
 	// channel <- "Test"

@@ -6,19 +6,15 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"sync"
 )
 
 // Starts the evaluation of User Input
 func StartUserInput(
-	wg *sync.WaitGroup,
 	log *slog.Logger,
 	// channelToMain chan bool,
 	channelToWorker chan string,
 	crashFunc context.CancelFunc,
 ) {
-	wg.Add(1)
-	defer wg.Done()
 	log = log.With(slog.String("Component", "UserInput"))
 
 	scanner := bufio.NewScanner(os.Stdin)
