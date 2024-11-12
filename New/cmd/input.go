@@ -26,17 +26,18 @@ func StartUserInput(
 		err := scanner.Err()
 		if err != nil {
 			log.Error(err.Error())
+			continue
 		}
 		input := scanner.Text()
 
 		// Evaluate User Input
 		if input == "CRASH" {
-			log.Info("Recieved Crash Command")
+			log.Info("Received Crash Command")
 			// channelToMain <- true // Maybe unnecessary, b/c of ctx/CancelFunc/crashFunc
 			crashFunc()
 			return
 		} else if input == "EXIT" {
-			log.Info("Recieved EXIT Command")
+			log.Info("Received EXIT Command")
 			channelToWorker <- input
 			return
 		} else {

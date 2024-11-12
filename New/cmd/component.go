@@ -27,6 +27,17 @@ var endpoints []n.Endpoint = []n.Endpoint{
 			n.PUT:    HAHAHA,
 		},
 	},
+	{
+		Name: []string{"/vs/v1/system/:comUUID"},
+		AcceptedMethods: map[n.Method]n.Handler{
+			n.GET: getComponentByUUID,
+		},
+	},
+}
+
+func getComponentByUUID(response n.RestIn) n.RestOut {
+	body := gin.H{"message": "test"}
+	return n.RestOut{http.StatusOK, body}
 }
 
 func test(r n.RestIn) n.RestOut {

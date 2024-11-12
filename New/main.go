@@ -13,7 +13,7 @@ import (
 
 // TODO better logging currently all is manually set = bad (component string in every file but main.go)
 // TODO Buffered Channels for commands
-// TODO test relation between "ctx.WithCancel" and "defer wg.Done()". Does a cancelation still execute the wg.Done() function?
+// TODO test relation between "ctx.WithCancel" and "defer wg.Done()". Does a cancellation still execute the wg.Done() function?
 // TODO Maybe make the TCP channel a map (Endpoint -> gin.Context)
 // TODO Better words to differentiate between components in the program and component as a thing in the networkstructure
 func main() {
@@ -23,7 +23,7 @@ func main() {
 	flag.Parse()
 
 	// Logger
-	// It may be better for every component to modify this logger for themselfs
+	// It may be better for every component to modify this logger for themselves
 	//group := slog.Group("UUID", utils.getUUID())
 	log := slog.Default() //.With(group)
 
