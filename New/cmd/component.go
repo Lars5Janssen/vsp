@@ -10,6 +10,10 @@ import (
 	n "github.com/Lars5Janssen/vsp/net"
 )
 
+func GetEndpoints() []n.Endpoint {
+	return endpoints
+}
+
 var endpoints []n.Endpoint = []n.Endpoint{
 	// {[]string{"/exampleEndpoint", "/exampleEndpoint/"}, map[n.Method]n.Handler{
 	// 	n.GET:    test,
@@ -19,12 +23,17 @@ var endpoints []n.Endpoint = []n.Endpoint{
 		Name: []string{"/exampleEndpoint2", "/exampleEndpoint2/"},
 		AcceptedMethods: map[n.Method]n.Handler{
 			n.GET:    test,
-			n.DELETE: test,
+			n.DELETE: testDELETE,
+			n.PUT:    HAHAHA,
 		},
 	},
 }
 
 func test(r n.RestIn) n.RestOut {
+	body := gin.H{"message": "test"}
+	return n.RestOut{http.StatusOK, body}
+}
+func testDELETE(r n.RestIn) n.RestOut {
 	body := gin.H{"message": "test"}
 	return n.RestOut{http.StatusOK, body}
 }

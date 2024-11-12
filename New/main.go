@@ -7,8 +7,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/gin-gonic/gin"
-
 	"github.com/Lars5Janssen/vsp/cmd"
 	"github.com/Lars5Janssen/vsp/net"
 )
@@ -20,8 +18,8 @@ import (
 // TODO Better words to differentiate between components in the program and component as a thing in the networkstructure
 func main() {
 	// Parse command-line arguments
-	port := flag.Int("port", 8006, "Port to run the server on")
-	rerun := *flag.Bool("rerun", false, "Enable this flag to automatically restart")
+	port := flag.Int("port", 8006, "Port to run the server on")                     // -port=8006
+	rerun := flag.Bool("rerun", false, "Enable this flag to automatically restart") // -rerun
 	flag.Parse()
 
 	// Logger
@@ -33,7 +31,7 @@ func main() {
 		"Start of program",
 		slog.String("Component", "Main"),
 		slog.Int("Port", *port),
-		slog.Bool("ReRun?", rerun),
+		slog.Bool("ReRun?", *rerun),
 	)
 
 	// Channels, Contexts & WaitGroup (Thread Stuff)
@@ -47,10 +45,12 @@ func main() {
 	udpCTX, udpCancel := context.WithCancel(context.Background())
 	workerCTX, workerCancel := context.WithCancel(context.Background())
 
-	go net.StartTCPServer(log, *port, nil, restIn, restOut)
+	go net.StartTCPServer(log, *port, cmd.GetEndpoints(), restIn, restOut)
 	go cmd.StartUserInput(log, InputWorker, workerCancel)
 
-	for rerun {
+	firstRun := true
+	for *rerun || firstRun {
+		firstRun = false
 		go net.ListenForBroadcastMessage(udpCTX, log, *port, udpMainSol)
 		net.SendHello(log, *port)
 		response := <-udpMainSol // blocking (on both ends)
