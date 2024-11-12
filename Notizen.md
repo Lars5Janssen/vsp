@@ -5,8 +5,9 @@ slog ist glaube ich fuer uns super geignet. Ist in der Standard Libary drinne. U
 mit [der libary](https://github.com/samber/slog-multi#broadcast-slogmultifanout) um multilog zu ermoeglichen
 
 [Gin: HTTP Framework und JSON parser](https://gin-gonic.com/) \
-scheint gut zu sein und arbeit abzunehmen, ohne dass es spring ist. Es ist zwar moeglich einen HTTP Server mit REST API nur mithilfe der stdlib zu erstellen. Aber ich fand den Syntax mit Gin einwenig netter. Es _soll_ woll auch direkt JSON parsen/validieren. Zum Thema JSON hat uns Kossakowski ja allen stark ans herz gelegt schon was bestehendes fuer JSON zu nutzen
-
+scheint gut zu sein und arbeit abzunehmen, ohne dass es spring ist. Es ist zwar moeglich einen HTTP Server mit REST API nur mithilfe der stdlib zu erstellen. Aber ich fand den Syntax mit Gin einwenig netter. Es _soll_ woll auch direkt JSON parsen/validieren. Zum Thema JSON hat uns Kossakowski ja allen stark ans herz gelegt schon was bestehendes fuer JSON zu nutzen \
+\
+[HTTP Endpoint tester](https://www.usebruno.com/) HUND!
 # TODO
 
 - [ ] Gin nutzen

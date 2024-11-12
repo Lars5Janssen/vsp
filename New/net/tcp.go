@@ -25,6 +25,8 @@ const (
 	GET    = "GET"
 	PUT    = "PUT"
 	DELETE = "DELETE"
+	PATCH  = "PATCH"
+	POST   = "POST"
 )
 
 type Endpoint struct {
@@ -39,6 +41,10 @@ func stringToMethod(s string) Method {
 		return PUT
 	} else if s == "DELETE" {
 		return DELETE
+	} else if s == "PATCH" {
+		return PATCH
+	} else if s == "POST" {
+		return POST
 	} else {
 		return ""
 	}
@@ -96,6 +102,10 @@ func StartTCPServer(
 					router.PUT(vv, f)
 				case DELETE:
 					router.DELETE(vv, f)
+				case PATCH:
+					router.PATCH(vv, f)
+				case POST:
+					router.POST(vv, f)
 				default:
 					log.Error("Unrecognized Method")
 
