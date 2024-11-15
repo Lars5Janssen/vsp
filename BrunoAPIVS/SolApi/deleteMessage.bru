@@ -1,0 +1,15 @@
+meta {
+  name: deleteMessage
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{HttpUrl}}{{Port}}/vs/v1/messages/1?star=1
+  body: none
+  auth: none
+}
+
+params:query {
+  star: 1
+}

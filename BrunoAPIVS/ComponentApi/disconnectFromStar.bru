@@ -1,0 +1,15 @@
+meta {
+  name: disconnectFromStar
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{HttpUrl}}{{Port}}/vs/v1/system/1?star=1
+  body: none
+  auth: none
+}
+
+params:query {
+  star: 1
+}

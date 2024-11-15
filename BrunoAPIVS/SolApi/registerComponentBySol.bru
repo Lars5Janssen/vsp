@@ -1,0 +1,22 @@
+meta {
+  name: registerComponentBySol
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{HttpUrl}}{{Port}}/vs/v1/system
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "STAR": "StarUUID",
+    "SOL": "COM-UUID",
+    "COMPONENT": "COM-UUID",
+    "COMIP": "http://127.0.0.2:8006",
+    "COMTCP": "https://127.0.0.2:8006",
+    "STATUS": 404
+  }
+}

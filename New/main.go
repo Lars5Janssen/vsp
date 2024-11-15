@@ -45,19 +45,26 @@ func main() {
 	udpCTX, udpCancel := context.WithCancel(context.Background())
 	workerCTX, workerCancel := context.WithCancel(context.Background())
 
-	go net.StartTCPServer(log, *port, cmd.GetEndpoints(), restIn, restOut)
+	/*	go net.StartTCPServer(log, *port, cmd.GetComponentEndpoints(), restIn, restOut)*/
 	go cmd.StartUserInput(log, InputWorker, workerCancel)
 
 	firstRun := true
 	for *rerun || firstRun {
 		firstRun = false
 		go net.ListenForBroadcastMessage(udpCTX, log, *port, udpMainSol)
-		net.SendHello(log, *port)
+		err := net.SendHello(log, *port)
+		if err != nil {
+			return
+		}
 		response := <-udpMainSol // blocking (on both ends)
 		if response == "" {      // "" might be a bad idea, as this may be sent by someone, so someone could force us to be sol
+			println("Start SolTCP")
+			go net.StartTCPServer(log, *port, cmd.GetSolEndpoints(), restIn, restOut)
 			go cmd.StartSol(workerCTX, log, InputWorker, udpMainSol, restIn, restOut)
 		} else {
+			println("Start ComponentTCP")
 			udpCancel()
+			go net.StartTCPServer(log, *port, cmd.GetComponentEndpoints(), restIn, restOut)
 			go cmd.StartComponent(workerCTX, log, InputWorker, restIn, restOut)
 		}
 		time.Sleep(1 * time.Hour)

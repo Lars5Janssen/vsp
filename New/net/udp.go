@@ -63,6 +63,8 @@ func ListenForBroadcastMessage(
 	channel chan string,
 ) {
 	log = log.With(slog.String("Component", "UDP"))
+	println("Listening for UDP broadcast...")
+	channel <- "HELLO"
 	// Send to channel:
 	// channel <- "Test"
 

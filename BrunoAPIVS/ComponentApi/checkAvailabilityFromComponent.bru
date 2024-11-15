@@ -1,0 +1,11 @@
+meta {
+  name: checkAvailabilityFromComponent
+  type: http
+  seq: 2
+}
+
+patch {
+  url: {{HttpUrl}}{{Port}}/vs/v1/system/1
+  body: none
+  auth: none
+}

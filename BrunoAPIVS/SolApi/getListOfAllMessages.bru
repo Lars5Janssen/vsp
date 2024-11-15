@@ -1,0 +1,17 @@
+meta {
+  name: getListOfAllMessages
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{HttpUrl}}{{Port}}/vs/v1/messages/1?star=<starUUID>&scope=<scope>&info=<info>
+  body: none
+  auth: none
+}
+
+params:query {
+  star: <starUUID>
+  scope: <scope>
+  info: <info>
+}

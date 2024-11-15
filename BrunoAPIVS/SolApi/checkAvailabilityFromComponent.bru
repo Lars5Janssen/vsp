@@ -1,0 +1,22 @@
+meta {
+  name: checkAvailabilityFromComponent
+  type: http
+  seq: 2
+}
+
+patch {
+  url: {{HttpUrl}}{{Port}}/vs/v1/system/1
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "STAR": "StarUUID",
+    "SOL": "COM-UUID",
+    "COMPONENT": "COM-UUID",
+    "COMIP": "http://127.0.0.2:8006",
+    "COMTCP": "https://127.0.0.2:8006",
+    "STATUS": 404
+  }
+}
