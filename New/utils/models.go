@@ -5,7 +5,7 @@ type RegisterRequestModel struct { // 1.0
 	SOL       int    "COM-UUID"
 	COMPONENT int    "COM-UUID"
 	COMIP     string "IP"
-	COMTCP    string "PORT"
+	COMTCP    int    "PORT"
 	STATUS    int    "HTTP-STATUS"
 }
 
@@ -14,7 +14,7 @@ type HeartBeatRequestModel struct { // 1.1
 	SOL       int    "COM-UUID"
 	COMPONENT int    "COM-UUID"
 	COMIP     string "IP"
-	COMTCP    string "PORT"
+	COMTCP    int    "PORT"
 	STATUS    int    "STATUS"
 }
 
