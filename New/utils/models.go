@@ -2,8 +2,8 @@ package utils
 
 type RegisterRequestModel struct { // 1.0
 	STAR      string "STAR-UUID"
-	SOL       string "COM-UUID"
-	COMPONENT string "COM-UUID"
+	SOL       int    "COM-UUID"
+	COMPONENT int    "COM-UUID"
 	COMIP     string "IP"
 	COMTCP    string "PORT"
 	STATUS    int    "HTTP-STATUS"
@@ -11,8 +11,8 @@ type RegisterRequestModel struct { // 1.0
 
 type HeartBeatRequestModel struct { // 1.1
 	STAR      string "STAR-UUID"
-	SOL       string "COM-UUID"
-	COMPONENT string "COM-UUID"
+	SOL       int    "COM-UUID"
+	COMPONENT int    "COM-UUID"
 	COMIP     string "IP"
 	COMTCP    string "PORT"
 	STATUS    int    "STATUS"
