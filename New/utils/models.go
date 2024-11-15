@@ -45,4 +45,9 @@ type MessageRequestModel struct { // 2.1
 }
 
 type Response struct {
+	STAR      string "STAR-UUID"
+	SOL       int    "COM-UUID"
+	COMPONENT int    "COM-UUID"
+	SOLIP     string "IP"
+	SOLTCP    int    "PORT"
 }
