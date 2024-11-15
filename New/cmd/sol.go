@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/hex"
+	"io"
 	"log/slog"
 	"math/big"
 	"net/http"
@@ -35,28 +36,59 @@ type ComponentEntry struct {
 
 type ComponentStatus int
 
+var log *slog.Logger
+
 var sol Sol
+
+var solList = map[int]ComponentEntry{}
+
+// TODO only active components count
+var lenOfSolList int
 
 func StartSol(
 	ctx context.Context,
-	log *slog.Logger,
+	logger *slog.Logger,
 	commands chan string,
 	udp chan string,
 	restIn chan n.RestIn,
 	restOut chan n.RestOut,
 ) {
+	log = logger
 	log = log.With(slog.String("Component", "SOL"))
 	log.Info("Starting as SOL")
 
 	// SOL Logic
-	sol = initializeSol(log, ctx)
+	initializeSol(log, ctx)
+	solList[sol.SolUUID] = ComponentEntry{
+		ComUUID:         sol.SolUUID,
+		IPAddress:       sol.IPAddress,
+		Port:            sol.Port,
+		TimeIntegration: time.Now(),
+		TimeInteraktion: time.Now(),
+		Status:          200,
+	}
+
+	// Max active components
+	temp := ctx.Value("maxActiveComponents")
+	lenOfSolList = temp.(int)
 
 	// Retrieve from channels:
-	// command := <-commands
-	// udpInput := <-udp
+	command := <-commands
+	udpInput := <-udp
 
 	// forever loop for API
 	for {
+		if command == "exit" {
+			sendDeleteRequests()
+			break
+		}
+		if udpInput == "HELLO?" {
+			response := "Hello"
+			err := n.SendBroadcastMessage(log, sol.Port, response)
+			if err != nil {
+				return
+			}
+		}
 		n.AttendHTTP(log, restIn, restOut, solEndpoints)
 	}
 }
@@ -79,10 +111,21 @@ func registerComponentBySol(response n.RestIn) n.RestOut {
 	}
 
 	// Check if all the info from the component is correct
-	checkInfoCorrect(registerRequestModel)
+	status := checkInfoCorrect(registerRequestModel)
+	if status != 200 {
+		return n.RestOut{status, nil}
+	}
 
-	body := gin.H{"message": "test"}
-	return n.RestOut{http.StatusOK, body}
+	// Add the component to the list
+	solList[registerRequestModel.COMPONENT] = ComponentEntry{
+		ComUUID:         registerRequestModel.COMPONENT,
+		IPAddress:       registerRequestModel.COMIP,
+		Port:            registerRequestModel.COMTCP,
+		TimeIntegration: time.Now(),
+		TimeInteraktion: time.Now(),
+	}
+
+	return n.RestOut{http.StatusOK, nil}
 }
 
 /*
@@ -126,35 +169,29 @@ func deleteMessage(response n.RestIn) n.RestOut {
 	return n.RestOut{http.StatusOK, body}
 }
 
-func initializeSol(log *slog.Logger, ctx context.Context) Sol {
-	var sol Sol
-
+func initializeSol(log *slog.Logger, ctx context.Context) {
 	// ComUUID from Sol
 	number, err := generateComUUID()
 	if err != nil {
 		log.Error("Error generating comUUID for Sol")
-		return sol
+		return
 	}
 	sol.SolUUID = number
 
 	// IpAddress and Port from Sol
 	sol.IPAddress = ctx.Value("ip").(string)
-	intValue, ok := ctx.Value("port").(int)
-	if !ok {
-		log.Error("Type conversion failed for port")
-		return sol
-	}
+	intValue := ctx.Value("port").(int)
+	sol.Port = intValue
 
 	// StarUUID from Sol
-	sol.Port = intValue
-	hashNumber, err := generateStarUUID(sol.IPAddress, sol.Port, strconv.Itoa(sol.SolUUID), *log)
+	hashNumber, err := generateStarUUID(*log)
 	if err != nil {
 		log.Error("Error generating starUUID")
-		return sol
+		return
 	}
 	sol.StarUUID = hashNumber
 
-	return sol
+	return
 }
 
 func generateComUUID() (int, error) {
@@ -165,10 +202,10 @@ func generateComUUID() (int, error) {
 	return int(randomNumber.Int64() + 1000), nil
 }
 
-func generateStarUUID(ip string, port int, solUUID string, log slog.Logger) (string, error) {
+func generateStarUUID(log slog.Logger) (string, error) {
 	// TODO ID equals last two digits of port?
 	// Get the last two digits of the port
-	portStr := strconv.Itoa(port)
+	portStr := strconv.Itoa(sol.Port)
 	if len(portStr) < 2 {
 		log.Error("port number is too short")
 		return "", nil
@@ -176,7 +213,7 @@ func generateStarUUID(ip string, port int, solUUID string, log slog.Logger) (str
 	lastTwoDigits := portStr[len(portStr)-2:]
 
 	// Concatenate the IP address, last two digits of the port, and solUUID
-	concatenated := ip + lastTwoDigits + solUUID
+	concatenated := sol.IPAddress + lastTwoDigits + strconv.Itoa(sol.SolUUID)
 
 	// Generate the MD5 hash
 	hash := md5.Sum([]byte(concatenated))
@@ -187,10 +224,52 @@ func generateStarUUID(ip string, port int, solUUID string, log slog.Logger) (str
 	return hashStr, nil
 }
 
-func checkInfoCorrect(registerRequestModel utils.RegisterRequestModel) int {
-	if registerRequestModel.STAR != sol.StarUUID { // || registerRequestModel.SOL != sol.SolUUID {
+func checkInfoCorrect(r utils.RegisterRequestModel) int {
+	if r.STAR != sol.StarUUID || r.SOL != sol.SolUUID {
 		// Return 401 Unauthorized
 		return 401
+	} else if len(solList) >= lenOfSolList {
+		// Return 403 No room left
+		return 403
+	} else if r.COMIP != sol.IPAddress || r.COMTCP != sol.Port || r.STATUS != 200 {
+		// Return 409 Conflict
+		return 409
 	}
+	// Return 200 OK
 	return 200
+}
+
+func sendDeleteRequests() {
+	for uuid, entry := range solList {
+		if uuid == sol.SolUUID {
+			continue
+		}
+
+		url := "http://" + entry.IPAddress + ":" + strconv.Itoa(entry.Port) + "/vs/v1/system/" + strconv.Itoa(uuid) +
+			"?star=" + sol.StarUUID
+		req, err := http.NewRequest(http.MethodDelete, url, nil)
+		if err != nil {
+			log.Error("Failed to create DELETE request", slog.String("error", err.Error()))
+			continue
+		}
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Error("Failed to send DELETE request", slog.String("error", err.Error()))
+			continue
+		}
+		defer func(Body io.ReadCloser) {
+			err := Body.Close()
+			if err != nil {
+
+			}
+		}(resp.Body)
+
+		if resp.StatusCode != http.StatusOK {
+			log.Error("Received non-OK response", slog.Int("statusCode", resp.StatusCode))
+		} else {
+			log.Info("Successfully sent DELETE request", slog.Int("uuid", uuid))
+		}
+	}
 }

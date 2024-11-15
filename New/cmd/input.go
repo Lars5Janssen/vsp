@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 )
 
 // Starts the evaluation of User Input
@@ -14,6 +15,7 @@ func StartUserInput(
 	// channelToMain chan bool,
 	channelToWorker chan string,
 	crashFunc context.CancelFunc,
+	crashUdp context.CancelFunc,
 ) {
 	log = log.With(slog.String("Component", "UserInput"))
 
@@ -28,16 +30,17 @@ func StartUserInput(
 			log.Error(err.Error())
 			continue
 		}
-		input := scanner.Text()
+		input := strings.ToLower(scanner.Text())
 
 		// Evaluate User Input
-		if input == "CRASH" {
-			log.Info("Received Crash Command")
+		if input == "crash" {
+			log.Info("Received crash Command")
 			// channelToMain <- true // Maybe unnecessary, b/c of ctx/CancelFunc/crashFunc
 			crashFunc()
+			crashUdp() // TODO also needs to crash?
 			return
-		} else if input == "EXIT" {
-			log.Info("Received EXIT Command")
+		} else if input == "exit" {
+			log.Info("Received exit Command")
 			channelToWorker <- input
 			return
 		} else {

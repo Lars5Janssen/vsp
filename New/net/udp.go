@@ -1,7 +1,6 @@
 package net
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -11,11 +10,11 @@ import (
 func SendHello(log *slog.Logger, port int) error {
 	log = log.With(slog.String("Component", "UDP"))
 	msg := "HELLO?"
-	err := sendBroadcastMessage(log, port, msg)
+	err := SendBroadcastMessage(log, port, msg)
 	if err != nil {
 		log.Error(fmt.Sprintf("First err: %s", err))
 		time.Sleep(1 * time.Second)
-		err = sendBroadcastMessage(log, port, msg)
+		err = SendBroadcastMessage(log, port, msg)
 		if err != nil {
 			log.Error(fmt.Sprintf("Second err: %s", err))
 		}
@@ -27,7 +26,7 @@ func sendMessage(log *slog.Logger, addr net.IPAddr, port int, msg string) {
 	// log = log.With(slog.String("Component", "UDP"))
 }
 
-func sendBroadcastMessage(log *slog.Logger, port int, msg string) error {
+func SendBroadcastMessage(log *slog.Logger, port int, msg string) error {
 	log = log.With(slog.String("Component", "UDP"))
 	conn, err := net.DialUDP("udp", nil, &net.UDPAddr{
 		IP:   net.IPv4bcast,
@@ -57,15 +56,44 @@ func sendBroadcastMessage(log *slog.Logger, port int, msg string) error {
 }
 
 func ListenForBroadcastMessage(
-	ctx context.Context,
 	log *slog.Logger,
 	port int,
 	channel chan string,
 ) {
 	log = log.With(slog.String("Component", "UDP"))
-	println("Listening for UDP broadcast...")
-	channel <- "HELLO"
-	// Send to channel:
-	// channel <- "Test"
 
+	addr := net.UDPAddr{
+		IP:   net.IPv4zero,
+		Port: port,
+	}
+
+	conn, err := net.ListenUDP("net", &addr)
+	if err != nil {
+		log.Error("Failed to listen on UDP port: %w", err)
+		return
+	} else {
+		log.Info("Listening for UDP broadcast...\n")
+	}
+	defer func(conn *net.UDPConn) {
+		err := conn.Close()
+		if err != nil {
+			log.Error("Failed to close connection: %v\n", err)
+			return
+		}
+	}(conn)
+
+	buffer := make([]byte, 1024)
+	for {
+		n, remoteAddr, err := conn.ReadFromUDP(buffer)
+		if err != nil {
+			log.Error("Failed to read from UDP connection: %w", err)
+			return
+		}
+
+		message := string(buffer[:n])
+		if message == "HELLO?" {
+			log.Info("Received 'HELLO?' message from %s\n", remoteAddr)
+			channel <- message
+		}
+	}
 }
