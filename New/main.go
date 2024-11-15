@@ -17,6 +17,8 @@ import (
 // TODO Maybe make the TCP channel a map (Endpoint -> gin.Context)
 // TODO Better words to differentiate between components in the program and component as a thing in the networkstructure
 func main() {
+	ip := "127.0.0.1" // nimmt localhost als IP-Adresse
+
 	// Parse command-line arguments
 	port := flag.Int("port", 8006, "Port to run the server on")                     // -port=8006
 	rerun := flag.Bool("rerun", false, "Enable this flag to automatically restart") // -rerun
@@ -24,8 +26,8 @@ func main() {
 
 	// Logger
 	// It may be better for every component to modify this logger for themselves
-	//group := slog.Group("UUID", utils.getUUID())
-	log := slog.Default() //.With(group)
+	// group := slog.Group("UUID", utils.getUUID())
+	log := slog.Default() // .With(group)
 
 	log.Info(
 		"Start of program",
@@ -46,6 +48,9 @@ func main() {
 	workerCTX, workerCancel := context.WithCancel(context.Background())
 
 	/*	go net.StartTCPServer(log, *port, cmd.GetComponentEndpoints(), restIn, restOut)*/
+	workerCTX = context.WithValue(workerCTX, "ip", ip)
+	workerCTX = context.WithValue(workerCTX, "port", *port)
+
 	go cmd.StartUserInput(log, InputWorker, workerCancel)
 
 	firstRun := true
@@ -59,12 +64,12 @@ func main() {
 		response := <-udpMainSol // blocking (on both ends)
 		if response == "" {      // "" might be a bad idea, as this may be sent by someone, so someone could force us to be sol
 			println("Start SolTCP")
-			go net.StartTCPServer(log, *port, cmd.GetSolEndpoints(), restIn, restOut)
+			go net.StartTCPServer(log, ip, *port, cmd.GetSolEndpoints(), restIn, restOut)
 			go cmd.StartSol(workerCTX, log, InputWorker, udpMainSol, restIn, restOut)
 		} else {
 			println("Start ComponentTCP")
 			udpCancel()
-			go net.StartTCPServer(log, *port, cmd.GetComponentEndpoints(), restIn, restOut)
+			go net.StartTCPServer(log, ip, *port, cmd.GetComponentEndpoints(), restIn, restOut)
 			go cmd.StartComponent(workerCTX, log, InputWorker, restIn, restOut)
 		}
 		time.Sleep(1 * time.Hour)

@@ -52,18 +52,18 @@ func stringToMethod(s string) Method {
 
 func AttendHTTP(
 	log *slog.Logger,
-	reciveChannel chan RestIn,
+	receiveChannel chan RestIn,
 	sendChannel chan RestOut,
 	handlers []Endpoint,
 ) {
-	recived := <-reciveChannel
+	received := <-receiveChannel
 	var handler Handler
 	foundHandler := false
 	for _, v := range handlers {
-		i := slices.Index(v.Name, recived.EndpointAddr)
+		i := slices.Index(v.Name, received.EndpointAddr)
 		if i != -1 {
 			foundHandler = true
-			h, exists := v.AcceptedMethods[stringToMethod(recived.Context.Request.Method)]
+			h, exists := v.AcceptedMethods[stringToMethod(received.Context.Request.Method)]
 			if exists {
 				handler = h
 			}
@@ -73,11 +73,12 @@ func AttendHTTP(
 		log.Error("Did not find Handler")
 		return
 	}
-	sendChannel <- handler(recived)
+	sendChannel <- handler(received)
 }
 
 func StartTCPServer(
 	log *slog.Logger,
+	ip string,
 	port int,
 	endpoints []Endpoint,
 	inputChannel chan RestIn,
@@ -114,7 +115,7 @@ func StartTCPServer(
 		}
 	}
 
-	addr := fmt.Sprintf("127.0.0.1:%d", port) // Nimmt localhost als IP
+	addr := fmt.Sprintf("%s:%d", ip, port)
 	log.Info("Starting TCP Server", slog.String("Address", addr))
 	err := router.Run(addr)
 	if err != nil {
