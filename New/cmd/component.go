@@ -79,6 +79,14 @@ func testDELETE(r n.RestIn) n.RestOut {
 	return n.RestOut{http.StatusOK, body}
 }
 
+type Component struct {
+	ComUUID       int
+	ComponentName string
+	SolUUID       int
+	IPAdress      string
+	ComPort       string
+}
+
 func StartComponent(
 	ctx context.Context,
 	log *slog.Logger,
