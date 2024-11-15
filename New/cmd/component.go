@@ -90,5 +90,7 @@ func StartComponent(
 	log = log.With(slog.String("Component", "Component"))
 	log.Info("Starting as Component")
 	// TODO Hier scheint eine Loop logic sein zu müssen damit die Ports available bleiben
-	n.AttendHTTP(log, restIn, restOut, endpoints) // Will Handle endpoints in this thread
+	for true {
+		n.AttendHTTP(log, restIn, restOut, endpoints) // Will Handle endpoints in this thread
+	}
 }
