@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"strconv"
 	"time"
 )
 
@@ -63,9 +64,26 @@ func ListenForBroadcastMessage(
 	channel chan string,
 ) {
 	log = log.With(slog.String("Component", "UDP"))
-	println("Listening for UDP broadcast...")
-	channel <- "HELLO"
-	// Send to channel:
-	// channel <- "Test"
+
+	udpServer, err := net.ListenPacket("udp", ":"+strconv.Itoa(port))
+	if err != nil {
+		log.Error("Could not start UDP Server")
+	}
+	defer udpServer.Close()
+	for {
+		buf := make([]byte, 1024)
+		numOfBytes, addr, err := udpServer.ReadFrom(buf)
+		if err != nil {
+			log.Error(fmt.Sprintf("Error during Reading from buffer. Error: %s", err.Error()))
+		}
+		recieved := string(buf)
+		log.Debug(
+			"Recieved Packet",
+			slog.Int("Length", numOfBytes),
+			slog.String("From", addr.String()),
+			slog.String("Content", recieved),
+		)
+		channel <- recieved
+	}
 
 }
