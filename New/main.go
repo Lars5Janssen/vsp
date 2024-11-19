@@ -5,6 +5,7 @@ import (
 	"flag"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Lars5Janssen/vsp/cmd"
@@ -57,7 +58,7 @@ func main() {
 			return
 		}
 		response := <-udpMainSol // blocking (on both ends)
-		if response == "" {      // "" might be a bad idea, as this may be sent by someone, so someone could force us to be sol
+		if strings.HasPrefix(response, "HELLO") {
 			println("Start SolTCP")
 			go net.StartTCPServer(log, *port, cmd.GetSolEndpoints(), restIn, restOut)
 			go cmd.StartSol(workerCTX, log, InputWorker, udpMainSol, restIn, restOut)
