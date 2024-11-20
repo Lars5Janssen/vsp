@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"os"
 	"sync"
+	"strings"
+	"time"
 
 	"github.com/Lars5Janssen/vsp/cmd"
 	"github.com/Lars5Janssen/vsp/net"
@@ -27,9 +29,11 @@ func main() {
 	flag.Parse()
 
 	// Logger
-	// It may be better for every component to modify this logger for themselves
-	// group := slog.Group("UUID", utils.getUUID())
-	log := slog.Default() // .With(group)
+	lvl := new(slog.LevelVar)
+	lvl.Set(slog.LevelDebug)
+	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: lvl,
+	}))
 
 	log.Info(
 		"Start of program",

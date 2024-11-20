@@ -37,6 +37,7 @@ func StartUserInput(
 			// channelToMain <- true // Maybe unnecessary, b/c of ctx/CancelFunc/crashFunc
 			crashFunc()
 			crashUdp() // TODO also needs to crash?
+			// os.Exit(-4)
 			return
 		} else if input == "exit" {
 			log.Info("Received exit Command")

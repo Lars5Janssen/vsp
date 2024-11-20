@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"os"
+	"strconv"
 	"time"
 )
 
@@ -62,38 +64,34 @@ func ListenForBroadcastMessage(
 ) {
 	log = log.With(slog.String("Component", "UDP"))
 
-	addr := net.UDPAddr{
-		IP:   net.IPv4zero,
-		Port: port,
-	}
-
-	conn, err := net.ListenUDP("net", &addr)
+	udpServer, err := net.ListenPacket("udp", ":"+strconv.Itoa(port))
 	if err != nil {
-		log.Error("Failed to listen on UDP port: %w", err)
-		return
-	} else {
-		log.Info("Listening for UDP broadcast...\n")
+		log.Error("Could not start UDP Server")
+		os.Exit(2)
 	}
-	defer func(conn *net.UDPConn) {
-		err := conn.Close()
-		if err != nil {
-			log.Error("Failed to close connection: %v\n", err)
-			return
-		}
-	}(conn)
-
-	buffer := make([]byte, 1024)
+	log.Info("Started UDP Server",
+		slog.String("Addr of Server", udpServer.LocalAddr().String()),
+		slog.String("Netw of Server", udpServer.LocalAddr().Network()),
+	)
 	for {
-		n, remoteAddr, err := conn.ReadFromUDP(buffer)
+		buf := make([]byte, 1024)
+		numOfBytes, addr, err := udpServer.ReadFrom(buf)
 		if err != nil {
-			log.Error("Failed to read from UDP connection: %w", err)
-			return
+			log.Error(fmt.Sprintf("Error during Reading from buffer. Error: %s", err.Error()))
 		}
-
-		message := string(buffer[:n])
-		if message == "HELLO?" {
-			log.Info("Received 'HELLO?' message from %s\n", remoteAddr)
-			channel <- message
+		toSize := make([]byte, numOfBytes)
+		for i, _ := range toSize {
+			toSize[i] = buf[i]
 		}
+		recieved := string(toSize)
+		log.Debug(
+			"Recieved Packet",
+			slog.Int("Length", numOfBytes),
+			slog.String("From", addr.String()),
+			slog.String("Content", recieved),
+		)
+		channel <- recieved
 	}
+	udpServer.Close()
+
 }
