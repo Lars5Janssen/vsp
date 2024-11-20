@@ -5,7 +5,6 @@ import (
 	"flag"
 	"log/slog"
 	"os"
-	"strings"
 	"sync"
 
 	"github.com/Lars5Janssen/vsp/cmd"
@@ -71,7 +70,7 @@ func main() {
 		go net.ListenForBroadcastMessage(log, *port, udpMainSol) // udpCTX?
 		response := <-udpMainSol                                 // blocking (on both ends)
 		// response := "" // TODO remove this line
-		if strings.HasPrefix(response, "HELLO") {
+		if !(response == "HELLO?") {
 			log.Info("Start SolTCP")
 			workerCancel()
 			wg.Add(1)
