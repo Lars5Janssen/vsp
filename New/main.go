@@ -23,9 +23,11 @@ func main() {
 	flag.Parse()
 
 	// Logger
-	// It may be better for every component to modify this logger for themselves
-	//group := slog.Group("UUID", utils.getUUID())
-	log := slog.Default() //.With(group)
+	lvl := new(slog.LevelVar)
+	lvl.Set(slog.LevelDebug)
+	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: lvl,
+	}))
 
 	log.Info(
 		"Start of program",
@@ -34,7 +36,6 @@ func main() {
 		slog.Bool("ReRun?", *rerun),
 	)
 
-	// Channels, Contexts & WaitGroup (Thread Stuff)
 	// Channels:
 	InputWorker := make(chan string) // Input -> Worker
 	udpMainSol := make(chan string)  // UDP -> SOL/Main
@@ -45,7 +46,6 @@ func main() {
 	udpCTX, udpCancel := context.WithCancel(context.Background())
 	workerCTX, workerCancel := context.WithCancel(context.Background())
 
-	/*	go net.StartTCPServer(log, *port, cmd.GetComponentEndpoints(), restIn, restOut)*/
 	go cmd.StartUserInput(log, InputWorker, workerCancel)
 
 	firstRun := true
@@ -58,11 +58,9 @@ func main() {
 		}
 		response := <-udpMainSol // blocking (on both ends)
 		if response == "" {      // "" might be a bad idea, as this may be sent by someone, so someone could force us to be sol
-			println("Start SolTCP")
 			go net.StartTCPServer(log, *port, cmd.GetSolEndpoints(), restIn, restOut)
 			go cmd.StartSol(workerCTX, log, InputWorker, udpMainSol, restIn, restOut)
 		} else {
-			println("Start ComponentTCP")
 			udpCancel()
 			go net.StartTCPServer(log, *port, cmd.GetComponentEndpoints(), restIn, restOut)
 			go cmd.StartComponent(workerCTX, log, InputWorker, restIn, restOut)
