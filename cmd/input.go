@@ -11,7 +11,6 @@ import (
 // Starts the evaluation of User Input
 func StartUserInput(
 	log *slog.Logger,
-	// channelToMain chan bool,
 	channelToWorker chan string,
 	crashFunc context.CancelFunc,
 ) {
@@ -33,8 +32,8 @@ func StartUserInput(
 		// Evaluate User Input
 		if input == "CRASH" {
 			log.Info("Received Crash Command")
-			// channelToMain <- true // Maybe unnecessary, b/c of ctx/CancelFunc/crashFunc
 			crashFunc()
+			// os.Exit(-4)
 			return
 		} else if input == "EXIT" {
 			log.Info("Received EXIT Command")
