@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"math/big"
@@ -72,9 +73,27 @@ func StartSol(
 	temp := ctx.Value("maxActiveComponents")
 	lenOfSolList = temp.(int)
 
+	// TODO only for tests because channel is not working for me
+	response := utils.Response{
+		STAR:      sol.StarUUID,
+		SOL:       sol.SolUUID,
+		COMPONENT: 2055,
+		SOLIP:     sol.IPAddress,
+		SOLTCP:    sol.Port,
+	}
+	log.Info("Data on SOl",
+		slog.Int("response", response.SOL),
+		slog.String("response", response.SOLIP),
+		slog.String("response", response.STAR),
+		slog.Int("response", response.COMPONENT),
+		slog.Int("response", response.SOLTCP),
+	)
+
 	// Retrieve from channels:
-	command := <-commands
-	udpInput := <-udp
+	var command string
+	var udpInput string
+	command = <-commands
+	udpInput = <-udp
 
 	// forever loop for API
 	for {
@@ -82,9 +101,28 @@ func StartSol(
 			sendDeleteRequests()
 			break
 		}
+		// to test: echo -n "HELLO?" >/dev/udp/localhost/8006
 		if udpInput == "HELLO?" {
-			response := "Hello"
-			err := n.SendBroadcastMessage(log, sol.Port, response)
+			intValue, err := generateComUUID()
+			if err != nil {
+				log.Error("Error generating comUUID")
+				return
+			}
+			response := utils.Response{
+				STAR:      sol.StarUUID,
+				SOL:       sol.SolUUID,
+				COMPONENT: intValue,
+				SOLIP:     sol.IPAddress,
+				SOLTCP:    sol.Port,
+			}
+			marshal, err := json.Marshal(response)
+			if err != nil {
+				log.Error("Error marshalling response", slog.String("error", err.Error()))
+				return
+			}
+			log.Info("Sending response to HELLO?", slog.String("response", response.STAR))
+			// TODO response has to be string or in method json
+			err = n.SendBroadcastMessage(log, sol.Port, string(marshal))
 			if err != nil {
 				return
 			}

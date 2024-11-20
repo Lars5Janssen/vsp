@@ -3,7 +3,6 @@ package cmd
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -23,7 +22,7 @@ func StartUserInput(
 
 	for {
 		// Get User Input
-		fmt.Println("User Input: ")
+		// fmt.Println("User Input: ")
 		scanner.Scan()
 		err := scanner.Err()
 		if err != nil {
@@ -44,7 +43,7 @@ func StartUserInput(
 			channelToWorker <- input
 			return
 		} else {
-			fmt.Println("Command not recognized")
+			log.Error("Command not recognized")
 		}
 	}
 }

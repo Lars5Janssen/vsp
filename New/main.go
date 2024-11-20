@@ -41,7 +41,7 @@ func main() {
 
 	// Channels, Contexts & WaitGroup (Thread Stuff)
 	// Channels:
-	InputWorker := make(chan string) // Input -> Worker
+	inputWorker := make(chan string) // Input -> Worker
 	udpMainSol := make(chan string)  // UDP -> SOL/Main
 	restIn := make(chan net.RestIn)
 	restOut := make(chan net.RestOut)
@@ -56,25 +56,26 @@ func main() {
 	workerCTX = context.WithValue(workerCTX, "port", *port)
 	workerCTX = context.WithValue(workerCTX, "maxActiveComponents", *maxActiveComponents)
 
-	go cmd.StartUserInput(log, InputWorker, workerCancel, udpCancel)
+	go cmd.StartUserInput(log, inputWorker, workerCancel, udpCancel)
 
 	firstRun := true
 	for *rerun || firstRun {
 		firstRun = false
-		go net.ListenForBroadcastMessage(log, *port, udpMainSol) // udpCTX?
 		err := net.SendHello(log, *port)
 		if err != nil {
 			return
 		}
-		response := <-udpMainSol // blocking (on both ends)
-		if response == "" {      // "" might be a bad idea, as this may be sent by someone, so someone could force us to be sol
+		go net.ListenForBroadcastMessage(log, *port, udpMainSol) // udpCTX?
+		// response := <-udpMainSol  // blocking (on both ends)
+		response := ""      // TODO remove this line
+		if response == "" { // "" might be a bad idea, as this may be sent by someone, so someone could force us to be sol
 			log.Info("Start SolTCP")
 			workerCancel()
 			wg.Add(1)
 			go net.StartTCPServer(log, ip, *port, cmd.GetSolEndpoints(), restIn, restOut)
 			go func() {
 				defer wg.Done()
-				cmd.StartSol(workerCTX, log, InputWorker, udpMainSol, restIn, restOut)
+				cmd.StartSol(workerCTX, log, inputWorker, udpMainSol, restIn, restOut)
 			}()
 		} else {
 			log.Info("Start ComponentTCP")
@@ -84,7 +85,7 @@ func main() {
 			go net.StartTCPServer(log, ip, *port, cmd.GetComponentEndpoints(), restIn, restOut)
 			go func() {
 				defer wg.Done()
-				cmd.StartComponent(workerCTX, log, InputWorker, restIn, restOut)
+				cmd.StartComponent(workerCTX, log, inputWorker, restIn, restOut)
 			}()
 		}
 		wg.Wait()
