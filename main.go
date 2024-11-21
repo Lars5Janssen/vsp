@@ -44,7 +44,7 @@ func main() {
 	// Channels, Contexts & WaitGroup (Thread Stuff)
 	// Channels:
 	inputWorker := make(chan string) // Input -> Worker
-	udpMainSol := make(chan string)  // UDP -> SOL/Main
+	udpMainSol := make(chan net.UDP) // UDP -> SOL/Main
 	restIn := make(chan net.RestIn)
 	restOut := make(chan net.RestOut)
 	var wg sync.WaitGroup
@@ -69,8 +69,7 @@ func main() {
 		}
 		go net.ListenForBroadcastMessage(log, *port, udpMainSol) // udpCTX?
 		response := <-udpMainSol                                 // blocking (on both ends)
-		// response := "" // TODO remove this line
-		if !(response == "HELLO?") {
+		if !(response.Message == "HELLO?") {
 			log.Info("Start SolTCP")
 			workerCancel()
 			wg.Add(1)

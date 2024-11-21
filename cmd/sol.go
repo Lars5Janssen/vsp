@@ -50,7 +50,7 @@ func StartSol(
 	ctx context.Context,
 	logger *slog.Logger,
 	commands chan string,
-	udp chan string,
+	udp chan n.UDP,
 	restIn chan n.RestIn,
 	restOut chan n.RestOut,
 ) {
@@ -89,45 +89,49 @@ func StartSol(
 		slog.Int("response", response.SOLTCP),
 	)
 
-	// Retrieve from channels:
-	var command string
-	var udpInput string
-	command = <-commands
-	udpInput = <-udp
-
 	// forever loop for API
 	for {
-		if command == "exit" {
-			sendDeleteRequests()
-			break
+		// Retrieve from channels:
+		select {
+		case command := <-commands:
+			if command == "exit" {
+				sendDeleteRequests()
+				return
+			}
+		default:
+
 		}
-		// to test: echo -n "HELLO?" >/dev/udp/localhost/8006
-		if udpInput == "HELLO?" {
-			intValue, err := generateComUUID()
-			if err != nil {
-				log.Error("Error generating comUUID")
-				return
+		select {
+		case udpInput := <-udp:
+			// to test: echo HELLO? | ncat -u 255.255.255.255 8006
+			log.Debug("Received UDP message", slog.String("message", udpInput.Message))
+			if udpInput.Message == "HELLO?" {
+				intValue, err := generateComUUID()
+				if err != nil {
+					log.Error("Error generating comUUID")
+					return
+				}
+				response := utils.Response{
+					STAR:      sol.StarUUID,
+					SOL:       sol.SolUUID,
+					COMPONENT: intValue,
+					SOLIP:     sol.IPAddress,
+					SOLTCP:    sol.Port,
+				}
+				marshal, err := json.Marshal(response)
+				if err != nil {
+					log.Error("Error marshalling response", slog.String("error", err.Error()))
+					return
+				}
+				log.Info("Sending response to HELLO?", slog.String("response", response.STAR))
+				err = n.SendMessage(log, udpInput.Addr, sol.Port, string(marshal))
+				if err != nil {
+					return
+				}
 			}
-			response := utils.Response{
-				STAR:      sol.StarUUID,
-				SOL:       sol.SolUUID,
-				COMPONENT: intValue,
-				SOLIP:     sol.IPAddress,
-				SOLTCP:    sol.Port,
-			}
-			marshal, err := json.Marshal(response)
-			if err != nil {
-				log.Error("Error marshalling response", slog.String("error", err.Error()))
-				return
-			}
-			log.Info("Sending response to HELLO?", slog.String("response", response.STAR))
-			// TODO response has to be string or in method json
-			err = n.SendBroadcastMessage(log, sol.Port, string(marshal))
-			if err != nil {
-				return
-			}
+		default:
 		}
-		n.AttendHTTP(log, restIn, restOut, solEndpoints)
+		go n.AttendHTTP(log, restIn, restOut, solEndpoints)
 	}
 }
 
