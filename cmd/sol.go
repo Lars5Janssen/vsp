@@ -33,9 +33,27 @@ type ComponentEntry struct {
 	TimeIntegration time.Time
 	TimeInteraktion time.Time
 	Status          ComponentStatus
+	ActiveStatus    ActiveStatus
 }
 
 type ComponentStatus int
+
+const (
+	OK                 ComponentStatus = 200
+	Unauthorized       ComponentStatus = 401
+	Forbidden          ComponentStatus = 403
+	NotFound           ComponentStatus = 404
+	Conflict           ComponentStatus = 409
+	PreconditionFailed ComponentStatus = 412
+)
+
+type ActiveStatus string
+
+const (
+	Active       ActiveStatus = "active"
+	Left         ActiveStatus = "left"
+	Disconnected ActiveStatus = "disconnected"
+)
 
 var log *slog.Logger
 
@@ -68,7 +86,8 @@ func StartSol(
 		Port:            sol.Port,
 		TimeIntegration: time.Now(),
 		TimeInteraktion: time.Now(),
-		Status:          200,
+		Status:          OK,
+		ActiveStatus:    Active,
 	}
 
 	// Max active components
@@ -157,11 +176,11 @@ func registerComponentBySol(response n.RestIn) n.RestOut {
 	}
 
 	// Check if all the info from the component is correct
-	if checkConflict(registerRequestModel) != 200 {
+	if checkConflict(registerRequestModel) != OK {
 		return n.RestOut{http.StatusConflict, nil}
-	} else if checkUnauthorized(registerRequestModel) != 200 {
+	} else if checkUnauthorized(registerRequestModel) != OK {
 		return n.RestOut{http.StatusUnauthorized, nil}
-	} else if checkNoRoomLeft() != 200 {
+	} else if checkNoRoomLeft() != OK {
 		return n.RestOut{http.StatusForbidden, nil}
 	}
 
@@ -172,7 +191,8 @@ func registerComponentBySol(response n.RestIn) n.RestOut {
 		Port:            registerRequestModel.COMTCP,
 		TimeIntegration: time.Now(),
 		TimeInteraktion: time.Now(),
-		Status:          200,
+		Status:          OK,
+		ActiveStatus:    Active,
 	}
 
 	return n.RestOut{http.StatusOK, nil}
@@ -195,11 +215,12 @@ func checkAvailabilityFromComponent(response n.RestIn) n.RestOut {
 	}
 
 	// Check if info correct
-	if checkConflict(registerRequestModel) != 200 {
+	if checkConflict(registerRequestModel) != OK {
+		// TODO send back text/plain instead of application/json
 		return n.RestOut{http.StatusConflict, nil}
-	} else if checkUnauthorized(registerRequestModel) != 200 {
+	} else if checkUnauthorized(registerRequestModel) != OK {
 		return n.RestOut{http.StatusUnauthorized, nil}
-	} else if checkNotFound(registerRequestModel) != 200 {
+	} else if checkNotFound(registerRequestModel) != OK {
 		return n.RestOut{http.StatusNotFound, nil}
 	}
 
@@ -299,40 +320,46 @@ func generateStarUUID(log slog.Logger) (string, error) {
 	return hashStr, nil
 }
 
-func checkUnauthorized(r utils.RegisterRequestModel) int {
+func checkUnauthorized(r utils.RegisterRequestModel) ComponentStatus {
 	if r.STAR != sol.StarUUID || r.SOL != sol.SolUUID {
 		// Return 401 Unauthorized
-		return 401
+		return Unauthorized
 	}
 	// Return 200 OK
-	return 200
+	return OK
 }
 
-func checkNoRoomLeft() int {
-	if len(solList) >= lenOfSolList {
+func checkNoRoomLeft() ComponentStatus {
+	count := 0
+	for _, entry := range solList {
+		if entry.ActiveStatus == Active {
+			count++
+		}
+	}
+	if count >= lenOfSolList {
 		// Return 403 No room left
-		return 403
+		return Forbidden
 	}
 	// Return 200 OK
-	return 200
+	return OK
 }
 
-func checkNotFound(r utils.RegisterRequestModel) int {
+func checkNotFound(r utils.RegisterRequestModel) ComponentStatus {
 	if !listContains(r.COMPONENT) {
 		// Return 404 Not Found
-		return 404
+		return NotFound
 	}
 	// Return 200 OK
-	return 200
+	return OK
 }
 
-func checkConflict(r utils.RegisterRequestModel) int {
+func checkConflict(r utils.RegisterRequestModel) ComponentStatus {
 	if r.COMIP != sol.IPAddress || r.COMTCP != sol.Port || r.STATUS != 200 {
 		// Return 409 Conflict
-		return 409
+		return Conflict
 	}
 	// Return 200 OK
-	return 200
+	return OK
 }
 
 func sendDeleteRequests() {

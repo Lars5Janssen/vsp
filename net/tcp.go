@@ -56,24 +56,26 @@ func AttendHTTP(
 	sendChannel chan RestOut,
 	handlers []Endpoint,
 ) {
-	received := <-receiveChannel
-	var handler Handler
-	foundHandler := false
-	for _, v := range handlers {
-		i := slices.Index(v.Name, received.EndpointAddr)
-		if i != -1 {
-			foundHandler = true
-			h, exists := v.AcceptedMethods[stringToMethod(received.Context.Request.Method)]
-			if exists {
-				handler = h
+	for {
+		received := <-receiveChannel
+		var handler Handler
+		foundHandler := false
+		for _, v := range handlers {
+			i := slices.Index(v.Name, received.EndpointAddr)
+			if i != -1 {
+				foundHandler = true
+				h, exists := v.AcceptedMethods[stringToMethod(received.Context.Request.Method)]
+				if exists {
+					handler = h
+				}
 			}
 		}
+		if !foundHandler {
+			log.Error("Did not find Handler")
+			return
+		}
+		sendChannel <- handler(received)
 	}
-	if !foundHandler {
-		log.Error("Did not find Handler")
-		return
-	}
-	sendChannel <- handler(received)
 }
 
 func StartTCPServer(
