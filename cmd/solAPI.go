@@ -14,7 +14,7 @@ var solEndpoints = []n.Endpoint{
 		},
 	},
 	{
-		Name: []string{"/vs/v1/system/<comUUID>"}, // TODO :comUUID muss definiert werden
+		Name: []string{"/vs/v1/system/:comUUID"}, // TODO :comUUID muss definiert werden
 		AcceptedMethods: map[n.Method]n.Handler{
 			n.PATCH: checkAvailabilityFromComponent, // TODO siehe methodenkommentar
 		},
