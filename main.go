@@ -50,21 +50,22 @@ func main() {
 	go cmd.StartUserInput(log, InputWorker, workerCancel)
 
 	firstRun := true
-	for *rerun || firstRun {
+	for *rerun || firstRun { // TODO hier würde ich das an Crash oder Exit anpassen
 		firstRun = false
 		go net.ListenForBroadcastMessage(udpCTX, log, *port, udpMainSol)
-		err := net.SendHello(log, *port)
+		/*err := net.SendHello(log, *port) // TODO SendHello muss 2 x stattfinden (alle 20 sekunden) und anschließend werden wir soll sofern wir eine Antwort erhalten haben
 		if err != nil {
 			return
-		}
+		}*/
 		response := <-udpMainSol // blocking (on both ends)
-		if strings.HasPrefix(response, "HELLO") {
+		log.Info("Received response", slog.String("Response", response))
+		if len(strings.TrimLeft(response, "\n")) == 1 {
 			go net.StartTCPServer(log, *port, cmd.GetSolEndpoints(), restIn, restOut)
 			go cmd.StartSol(workerCTX, log, InputWorker, udpMainSol, restIn, restOut)
 		} else {
 			udpCancel()
 			go net.StartTCPServer(log, *port, cmd.GetComponentEndpoints(), restIn, restOut)
-			go cmd.StartComponent(workerCTX, log, InputWorker, restIn, restOut)
+			go cmd.StartComponent(workerCTX, log, InputWorker, restIn, restOut, response)
 		}
 		time.Sleep(1 * time.Hour)
 	}
