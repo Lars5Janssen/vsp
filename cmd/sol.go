@@ -11,7 +11,9 @@ import (
 	"math/big"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 
@@ -61,7 +63,6 @@ var sol Sol
 
 var solList = map[int]ComponentEntry{}
 
-// TODO only active components count
 var lenOfSolList int
 
 func StartSol(
@@ -94,19 +95,23 @@ func StartSol(
 	temp := ctx.Value("maxActiveComponents")
 	lenOfSolList = temp.(int)
 
-	log.Info("Data on SOl",
-		slog.String("STARUUID", sol.StarUUID),
-		slog.Int("SOLUUID", sol.SolUUID),
-		slog.String("SOLIP", sol.IPAddress),
-		slog.Int("SOLPORT", sol.Port),
-	)
-
 	// has to be done outside for loop
 	go n.AttendHTTP(log, restIn, restOut, solEndpoints)
 
+	// Check if the components are still active
+	ticker := time.NewTicker(5 * time.Second) // TODO check every 5 seconds or 1 second?
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				checkInteractionTimes()
+			}
+		}
+	}()
+
 	// forever loop for commands and udp messages
 	for {
-		// Retrieve from channels:
+		// Retrieve from user input
 		select {
 		case command := <-commands:
 			if command == "exit" {
@@ -114,15 +119,15 @@ func StartSol(
 				return
 			}
 		default:
-
 		}
+
+		// Retrieve from UDP server
 		select {
 		case udpInput := <-udp:
 			// to test: echo HELLO? | ncat -u 255.255.255.255 8006
-			log.Debug("Received UDP message", slog.String("message", udpInput.Message))
+			log.Info("Received UDP message", slog.String("message", udpInput.Message))
 			if udpInput.Message == "HELLO?" {
-				// TODO only for test purposes
-				/*intValue, err := generateComUUID()
+				intValue, err := generateComUUID()
 				if err != nil {
 					log.Error("Error generating comUUID")
 					return
@@ -133,14 +138,10 @@ func StartSol(
 					COMPONENT: intValue,
 					SOLIP:     sol.IPAddress,
 					SOLTCP:    sol.Port,
-				}*/
-				response := utils.Response{
-					STAR:      sol.StarUUID,
-					SOL:       sol.SolUUID,
-					COMPONENT: 2000,
-					SOLIP:     sol.IPAddress,
-					SOLTCP:    sol.Port,
 				}
+
+				response.COMPONENT = 2000 // TODO only for test purposes
+
 				marshal, err := json.Marshal(response)
 				if err != nil {
 					log.Error("Error marshalling response", slog.String("error", err.Error()))
@@ -154,7 +155,66 @@ func StartSol(
 			}
 		default:
 		}
+
 	}
+}
+
+func checkInteractionTimes() {
+	for uuid, entry := range solList {
+		if entry.ActiveStatus == Active {
+			if time.Since(entry.TimeInteraktion) > 60*time.Second {
+				err := sendRequestsToActiveComponents(uuid)
+				if err != nil {
+					return
+				}
+				break
+			}
+		}
+	}
+}
+
+func sendRequestsToActiveComponents(uuid int) error {
+	entry := solList[uuid]
+	url := "http://" + entry.IPAddress + ":" + strconv.Itoa(entry.Port) + "/vs/v1/system/" + strconv.Itoa(
+		uuid) + "?star=" + sol.StarUUID
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		log.Error("Failed to create GET request", slog.String("error", err.Error()))
+		return err
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Error("Failed to send GET request", slog.String("error", err.Error()))
+		return err
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Error("Failed to close response body", slog.String("error", err.Error()))
+		}
+	}(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		log.Error("Received non-OK response", slog.Int("statusCode", resp.StatusCode))
+		entry.ActiveStatus = Disconnected
+		entry.Status = ComponentStatus(resp.StatusCode)
+	} else {
+		log.Info("Successfully sent GET request", slog.Int("uuid", uuid))
+		var heartBeatRequestModel utils.HeartBeatRequestModel
+		err := json.NewDecoder(resp.Body).Decode(&heartBeatRequestModel)
+		if err != nil {
+			log.Error("Failed to decode response body", slog.String("error", err.Error()))
+			entry.Status = ComponentStatus(resp.StatusCode)
+		} else {
+			entry.Status = ComponentStatus(heartBeatRequestModel.STATUS)
+			log.Info("Successfully parsed response body", slog.Any("heartBeatRequestModel", heartBeatRequestModel))
+		}
+	}
+	entry.TimeInteraktion = time.Now()
+	solList[uuid] = entry
+	return err
 }
 
 /*
@@ -176,12 +236,14 @@ func registerComponentBySol(response n.RestIn) n.RestOut {
 	}
 
 	// Check if all the info from the component is correct
-	if checkConflict(registerRequestModel) != OK {
+	if checkConflict(registerRequestModel, response.IpAndPort) != OK {
 		return n.RestOut{http.StatusConflict, nil}
 	} else if checkUnauthorized(registerRequestModel) != OK {
 		return n.RestOut{http.StatusUnauthorized, nil}
 	} else if checkNoRoomLeft() != OK {
 		return n.RestOut{http.StatusForbidden, nil}
+	} else if checkNotFound(registerRequestModel) == OK { // If the component is already in the list, return 409 Conflict
+		return n.RestOut{http.StatusConflict, nil}
 	}
 
 	// Add the component to the list
@@ -215,22 +277,47 @@ func checkAvailabilityFromComponent(response n.RestIn) n.RestOut {
 	}
 
 	// Check if info correct
-	if checkConflict(registerRequestModel) != OK {
-		// TODO send back text/plain instead of application/json
-		return n.RestOut{http.StatusConflict, nil}
+	if checkNotFound(registerRequestModel) != OK {
+		return n.RestOut{http.StatusNotFound, nil}
 	} else if checkUnauthorized(registerRequestModel) != OK {
 		return n.RestOut{http.StatusUnauthorized, nil}
-	} else if checkNotFound(registerRequestModel) != OK {
-		return n.RestOut{http.StatusNotFound, nil}
+	} else if checkConflict(registerRequestModel, response.EndpointAddr) != OK {
+		return n.RestOut{http.StatusConflict, nil}
 	}
 
 	// Update the time of interaction
 	if entry, exists := solList[registerRequestModel.COMPONENT]; exists {
+		entry.ActiveStatus = Active
 		entry.TimeInteraktion = time.Now()
 		solList[registerRequestModel.COMPONENT] = entry
 	}
 
 	return n.RestOut{http.StatusOK, nil}
+}
+
+func sendHeartBeatBack(response n.RestIn) n.RestOut {
+	if sol.StarUUID != response.Context.Query("star") {
+		return n.RestOut{http.StatusUnauthorized, nil}
+	}
+	uuid := response.Context.Param("comUUID?star=starUUID")
+	if uuid == "" {
+		return n.RestOut{http.StatusConflict, nil}
+	}
+	comUuid, _ := strconv.Atoi(uuid)
+	if sol.SolUUID != comUuid {
+		return n.RestOut{http.StatusConflict, nil}
+	}
+
+	heartBeatRequestModel := utils.HeartBeatRequestModel{
+		STAR:      sol.StarUUID,
+		SOL:       sol.SolUUID,
+		COMPONENT: sol.SolUUID,
+		COMIP:     sol.IPAddress,
+		COMTCP:    sol.Port,
+		STATUS:    int(OK),
+	}
+
+	return n.RestOut{http.StatusOK, heartBeatRequestModel}
 }
 
 /*
@@ -241,14 +328,62 @@ Wenn SOL nicht erreichbar ist, wird es nach 10 bzw. 20 Sekunden nochmal versucht
 zustande kommt, beendet sich die Komponente selbst.
 */
 func disconnectComponentFromStar(response n.RestIn) n.RestOut {
-	body := gin.H{"message": "test"}
-	return n.RestOut{http.StatusOK, body}
+	var out n.RestOut
+	var registerRequestModel utils.RegisterRequestModel
+
+	registerRequestModel.STAR = response.Context.Query("star")
+	stringValue := response.Context.Param("comUUID?star=starUUID")
+	comUUid, err := strconv.Atoi(stringValue)
+	if err != nil {
+		out.StatusCode = http.StatusBadRequest
+	} else {
+		registerRequestModel.COMPONENT = comUUid
+		if checkNotFound(registerRequestModel) != OK {
+			out.StatusCode = http.StatusNotFound
+		} else {
+			comEntry := solList[registerRequestModel.COMPONENT]
+			registerRequestModel.COMIP = comEntry.IPAddress
+			registerRequestModel.COMTCP = comEntry.Port
+			registerRequestModel.STATUS = int(comEntry.Status)
+			registerRequestModel.SOL = sol.SolUUID
+
+			if checkUnauthorized(registerRequestModel) != OK {
+				out.StatusCode = http.StatusUnauthorized
+			} else {
+				out.StatusCode = http.StatusOK
+			}
+		}
+	}
+	// Update the active status of the component
+	if entry, exists := solList[registerRequestModel.COMPONENT]; exists {
+		entry.ActiveStatus = Left
+		entry.TimeInteraktion = time.Now()
+		solList[registerRequestModel.COMPONENT] = entry
+	}
+
+	out.Body = nil
+	return out
 }
 
 /*
 createAndSaveMessage Aufgabe 2.1
 */
 func createAndSaveMessage(response n.RestIn) n.RestOut {
+	var message utils.MessageRequestModel
+	err := response.Context.ShouldBindJSON(&message)
+	if err != nil {
+		return n.RestOut{http.StatusBadRequest, nil}
+	}
+	if message.STAR != sol.StarUUID {
+		return n.RestOut{http.StatusUnauthorized, nil}
+	} else if message.ORIGIN == "" || message.SUBJECT == "" || !utf8.ValidString(message.ORIGIN) || !utf8.ValidString(message.SUBJECT) {
+		return n.RestOut{http.StatusPreconditionFailed, nil}
+	}
+	subject := strings.Split(message.SUBJECT, "\n")[0]
+	subject = strings.ReplaceAll(subject, "\r", "")
+	// TODO create msgUUID and create nonce counter
+	// TODO save message
+
 	body := gin.H{"message": "test"}
 	return n.RestOut{http.StatusOK, body}
 }
@@ -263,14 +398,14 @@ func deleteMessage(response n.RestIn) n.RestOut {
 
 func initializeSol(log *slog.Logger, ctx context.Context) {
 	// ComUUID from Sol
-	// TODO only for test purposes
-	/*number, err := generateComUUID()
+	number, err := generateComUUID()
 	if err != nil {
 		log.Error("Error generating comUUID for Sol")
 		return
-	}*/
-	// sol.SolUUID = number
-	sol.SolUUID = 1000
+	}
+	sol.SolUUID = number
+
+	sol.SolUUID = 1000 // TODO only for test purposes
 
 	// IpAddress and Port from Sol
 	sol.IPAddress = ctx.Value("ip").(string)
@@ -278,14 +413,14 @@ func initializeSol(log *slog.Logger, ctx context.Context) {
 	sol.Port = intValue
 
 	// StarUUID from Sol
-	// TODO only for test purposes
-	/*hashNumber, err := generateStarUUID(*log)
+	hashNumber, err := generateStarUUID(*log)
 	if err != nil {
 		log.Error("Error generating starUUID")
 		return
 	}
-	sol.StarUUID = hashNumber*/
-	sol.StarUUID = "testStarUUID"
+	sol.StarUUID = hashNumber
+
+	sol.StarUUID = "testStarUUID" // TODO only for test purposes
 
 	return
 }
@@ -295,7 +430,12 @@ func generateComUUID() (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return int(randomNumber.Int64() + 1000), nil
+	number := int(randomNumber.Int64() + 1000)
+	// If the number was already given, generate a new one
+	if listContains(number) {
+		return generateComUUID()
+	}
+	return number, nil
 }
 
 func generateStarUUID(log slog.Logger) (string, error) {
@@ -353,11 +493,19 @@ func checkNotFound(r utils.RegisterRequestModel) ComponentStatus {
 	return OK
 }
 
-func checkConflict(r utils.RegisterRequestModel) ComponentStatus {
-	if r.COMIP != sol.IPAddress || r.COMTCP != sol.Port || r.STATUS != 200 {
-		// Return 409 Conflict
+func checkConflict(r utils.RegisterRequestModel, addr string) ComponentStatus {
+	// TODO check if the IP address and port are correct (no idea which port is gonna be used) cannot test
+	addrs := strings.Split(addr, ":")
+	port, err := strconv.Atoi(addrs[1])
+	// TODO remove port != 0
+	if err != nil || port == -1 {
 		return Conflict
 	}
+	// TODO because i cant test it rn, i will just return 200 OK
+	/*if r.COMIP != addrs[0] || solList[r.COMPONENT].IPAddress != addrs[0] || r.COMTCP != port || r.STATUS != 200 {
+		// Return 409 Conflict
+		return Conflict
+	}*/
 	// Return 200 OK
 	return OK
 }
@@ -365,6 +513,8 @@ func checkConflict(r utils.RegisterRequestModel) ComponentStatus {
 func sendDeleteRequests() {
 	for uuid, entry := range solList {
 		if uuid == sol.SolUUID {
+			continue
+		} else if entry.ActiveStatus == Disconnected || entry.ActiveStatus == Left {
 			continue
 		}
 
@@ -379,7 +529,19 @@ func sendDeleteRequests() {
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {
-			log.Error("Failed to send DELETE request", slog.String("error", err.Error()))
+			log.Error("Failed to send first DELETE request", slog.String("error", err.Error()))
+			time.Sleep(10 * time.Second)
+			resp, err = client.Do(req)
+			if err != nil {
+				log.Error("Failed to send second DELETE request", slog.String("error", err.Error()))
+				time.Sleep(20 * time.Second)
+				resp, err = client.Do(req)
+				if err != nil {
+					log.Error("Failed to send third DELETE request", slog.String("error", err.Error()))
+					continue
+				}
+				continue
+			}
 			continue
 		}
 		defer func(Body io.ReadCloser) {

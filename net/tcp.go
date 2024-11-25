@@ -10,6 +10,7 @@ import (
 
 type RestIn struct {
 	EndpointAddr string
+	IpAndPort    string
 	Context      *gin.Context
 }
 type RestOut struct {
@@ -93,8 +94,10 @@ func StartTCPServer(
 		for _, vv := range v.Name {
 			for k := range v.AcceptedMethods {
 				f := func(c *gin.Context) {
-					inputChannel <- RestIn{vv, c}
+					ipAndPort := c.Request.RemoteAddr
+					inputChannel <- RestIn{vv, ipAndPort, c}
 					o := <-outputChannel
+					// TODO use plaintext for some requests
 					c.JSON(o.StatusCode, o.Body)
 				}
 
