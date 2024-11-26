@@ -83,13 +83,6 @@ func main() {
 			udpCancel()
 			workerCancel()
 			wg.Add(1)
-			go net.StartTCPServer(log, ip, *port, cmd.GetComponentEndpoints(), restIn, restOut)
-			go func() {
-				defer wg.Done()
-				cmd.StartComponent(workerCTX, log, inputWorker, restIn, restOut)
-			}()
-			workerCancel()
-			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				net.StartTCPServer(log, ip, *port, cmd.GetComponentEndpoints(), restIn, restOut)
