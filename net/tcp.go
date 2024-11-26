@@ -77,7 +77,6 @@ func AttendHTTP(
 		}
 		sendChannel <- handler(received)
 	}
-	sendChannel <- handler(recived)
 }
 
 func StartTCPServer(
