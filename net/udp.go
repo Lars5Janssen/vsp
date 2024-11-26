@@ -1,23 +1,28 @@
 package net
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
+
+type UDP struct {
+	Addr    net.UDPAddr
+	Message string
+}
 
 func SendHello(log *slog.Logger, port int) error {
 	log = log.With(slog.String("Component", "UDP"))
 	msg := "HELLO?"
-	err := sendBroadcastMessage(log, port, msg)
+	err := SendMessage(log, net.UDPAddr{}, port, msg)
 	if err != nil {
 		log.Error(fmt.Sprintf("First err: %s", err))
 		time.Sleep(1 * time.Second)
-		err = sendBroadcastMessage(log, port, msg)
+		err = SendMessage(log, net.UDPAddr{}, port, msg)
 		if err != nil {
 			log.Error(fmt.Sprintf("Second err: %s", err))
 		}
@@ -25,16 +30,19 @@ func SendHello(log *slog.Logger, port int) error {
 	return err
 }
 
-func sendMessage(log *slog.Logger, addr net.IPAddr, port int, msg string) {
-	// log = log.With(slog.String("Component", "UDP"))
-}
-
-func sendBroadcastMessage(log *slog.Logger, port int, msg string) error {
+func SendMessage(log *slog.Logger, addr net.UDPAddr, port int, msg string) error {
 	log = log.With(slog.String("Component", "UDP"))
-	conn, err := net.DialUDP("udp", nil, &net.UDPAddr{
-		IP:   net.IPv4bcast,
+	conn, err := net.DialUDP("udp", &addr, &net.UDPAddr{
+		IP:   addr.IP,
 		Port: port,
 	})
+	if addr.IP == nil {
+		conn, err = net.DialUDP("udp", nil, &net.UDPAddr{
+			IP:   net.IPv4bcast,
+			Port: port,
+		})
+	}
+
 	if err != nil {
 		log.Error(err.Error())
 		return err
@@ -59,10 +67,9 @@ func sendBroadcastMessage(log *slog.Logger, port int, msg string) error {
 }
 
 func ListenForBroadcastMessage(
-	ctx context.Context,
 	log *slog.Logger,
 	port int,
-	channel chan string,
+	channel chan UDP,
 ) {
 	log = log.With(slog.String("Component", "UDP"))
 
@@ -82,17 +89,29 @@ func ListenForBroadcastMessage(
 			log.Error(fmt.Sprintf("Error during Reading from buffer. Error: %s", err.Error()))
 		}
 		toSize := make([]byte, numOfBytes)
-		for i, _ := range toSize {
+		for i := range toSize {
 			toSize[i] = buf[i]
 		}
-		recieved := string(toSize)
+		received := string(toSize)
+		// TODO if string should end with \r\n then problem is here
+		received = strings.TrimRight(received, "\r\n")
 		log.Debug(
-			"Recieved Packet",
+			"Received Packet",
 			slog.Int("Length", numOfBytes),
 			slog.String("From", addr.String()),
-			slog.String("Content", recieved),
+			slog.String("Content", received),
 		)
-		channel <- recieved
+		// to send back to
+		udpAddr, ok := addr.(*net.UDPAddr)
+		if !ok {
+			log.Error("Address is not a UDP address")
+			return
+		}
+		receivedUdp := UDP{
+			Addr:    *udpAddr,
+			Message: received,
+		}
+		channel <- receivedUdp
 	}
 	udpServer.Close()
 

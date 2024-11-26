@@ -56,8 +56,7 @@ func parseResponse(response string, log *slog.Logger) (Component, error) {
 	if err != nil {
 		return Component{}, fmt.Errorf("error parsing response: %v", err)
 	}
-	print("HALLO")
-	fmt.Printf("Data: %v\n", data)
+	log.Info("Data: ", slog.Any("Data", data))
 
 	component := Component{
 		ComUUID:  int(data["component"].(float64)),

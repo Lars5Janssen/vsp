@@ -10,6 +10,7 @@ import (
 
 type RestIn struct {
 	EndpointAddr string
+	IpAndPort    string
 	Context      *gin.Context
 }
 type RestOut struct {
@@ -52,32 +53,36 @@ func stringToMethod(s string) Method {
 
 func AttendHTTP(
 	log *slog.Logger,
-	reciveChannel chan RestIn,
+	receiveChannel chan RestIn,
 	sendChannel chan RestOut,
 	handlers []Endpoint,
 ) {
-	recived := <-reciveChannel
-	var handler Handler
-	foundHandler := false
-	for _, v := range handlers {
-		i := slices.Index(v.Name, recived.EndpointAddr)
-		if i != -1 {
-			foundHandler = true
-			h, exists := v.AcceptedMethods[stringToMethod(recived.Context.Request.Method)]
-			if exists {
-				handler = h
+	for {
+		received := <-receiveChannel
+		var handler Handler
+		foundHandler := false
+		for _, v := range handlers {
+			i := slices.Index(v.Name, received.EndpointAddr)
+			if i != -1 {
+				foundHandler = true
+				h, exists := v.AcceptedMethods[stringToMethod(received.Context.Request.Method)]
+				if exists {
+					handler = h
+				}
 			}
 		}
-	}
-	if !foundHandler {
-		log.Error("Did not find Handler")
-		return
+		if !foundHandler {
+			log.Error("Did not find Handler")
+			return
+		}
+		sendChannel <- handler(received)
 	}
 	sendChannel <- handler(recived)
 }
 
 func StartTCPServer(
 	log *slog.Logger,
+	ip string,
 	port int,
 	endpoints []Endpoint,
 	inputChannel chan RestIn,
@@ -90,8 +95,10 @@ func StartTCPServer(
 		for _, vv := range v.Name {
 			for k := range v.AcceptedMethods {
 				f := func(c *gin.Context) {
-					inputChannel <- RestIn{vv, c}
+					ipAndPort := c.Request.RemoteAddr
+					inputChannel <- RestIn{vv, ipAndPort, c}
 					o := <-outputChannel
+					// TODO use plaintext for some requests
 					c.JSON(o.StatusCode, o.Body)
 				}
 
@@ -114,7 +121,7 @@ func StartTCPServer(
 		}
 	}
 
-	addr := fmt.Sprintf("127.0.0.1:%d", port) // Nimmt localhost als IP
+	addr := fmt.Sprintf("%s:%d", ip, port)
 	log.Info("Starting TCP Server", slog.String("Address", addr))
 	err := router.Run(addr)
 	if err != nil {

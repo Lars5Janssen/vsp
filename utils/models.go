@@ -1,5 +1,6 @@
 package utils
 
+// TODO better name and only one model
 type RegisterRequestModel struct { // 1.0
 	STAR      string "STAR-UUID"
 	SOL       int    "COM-UUID"

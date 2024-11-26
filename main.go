@@ -5,8 +5,7 @@ import (
 	"flag"
 	"log/slog"
 	"os"
-	"strings"
-	"time"
+	"sync"
 
 	"github.com/Lars5Janssen/vsp/cmd"
 	"github.com/Lars5Janssen/vsp/net"
@@ -18,9 +17,13 @@ import (
 // TODO Maybe make the TCP channel a map (Endpoint -> gin.Context)
 // TODO Better words to differentiate between components in the program and component as a thing in the networkstructure
 func main() {
+	ip := "127.0.0.1" // nimmt localhost als IP-Adresse
+
 	// Parse command-line arguments
 	port := flag.Int("port", 8006, "Port to run the server on")                     // -port=8006
 	rerun := flag.Bool("rerun", false, "Enable this flag to automatically restart") // -rerun
+	maxActiveComponents := flag.Int("maxActiveComponents", 4,
+		"Maximum number of active components") // -maxActiveComponents=4
 	flag.Parse()
 
 	// Logger
@@ -35,39 +38,58 @@ func main() {
 		slog.String("Component", "Main"),
 		slog.Int("Port", *port),
 		slog.Bool("ReRun?", *rerun),
+		slog.Int("MaxActiveComponents", *maxActiveComponents),
 	)
 
+	// Channels, Contexts & WaitGroup (Thread Stuff)
 	// Channels:
-	InputWorker := make(chan string) // Input -> Worker
-	udpMainSol := make(chan string)  // UDP -> SOL/Main
+	inputWorker := make(chan string) // Input -> Worker
+	udpMainSol := make(chan net.UDP) // UDP -> SOL/Main
 	restIn := make(chan net.RestIn)
 	restOut := make(chan net.RestOut)
+	var wg sync.WaitGroup
 
 	// Contexts:
-	udpCTX, udpCancel := context.WithCancel(context.Background())
+	_, udpCancel := context.WithCancel(context.Background())
 	workerCTX, workerCancel := context.WithCancel(context.Background())
 
-	go cmd.StartUserInput(log, InputWorker, workerCancel)
+	/*	go net.StartTCPServer(log, *port, cmd.GetComponentEndpoints(), restIn, restOut)*/
+	workerCTX = context.WithValue(workerCTX, "ip", ip)
+	workerCTX = context.WithValue(workerCTX, "port", *port)
+	workerCTX = context.WithValue(workerCTX, "maxActiveComponents", *maxActiveComponents)
+
+	go cmd.StartUserInput(log, inputWorker, workerCancel, udpCancel)
 
 	firstRun := true
-	for *rerun || firstRun { // TODO hier würde ich das an Crash oder Exit anpassen
+	for *rerun || firstRun {
 		firstRun = false
-		go net.ListenForBroadcastMessage(udpCTX, log, *port, udpMainSol)
-		/*err := net.SendHello(log, *port) // TODO SendHello muss 2 x stattfinden (alle 20 sekunden) und anschließend werden wir soll sofern wir eine Antwort erhalten haben
+		err := net.SendHello(log, *port)
 		if err != nil {
 			return
-		}*/
-		response := <-udpMainSol // blocking (on both ends)
-		log.Info("Received response", slog.String("Response", response))
-		if len(strings.TrimLeft(response, "\n")) == 1 {
-			go net.StartTCPServer(log, *port, cmd.GetSolEndpoints(), restIn, restOut)
-			go cmd.StartSol(workerCTX, log, InputWorker, udpMainSol, restIn, restOut)
-		} else {
-			udpCancel()
-			go net.StartTCPServer(log, *port, cmd.GetComponentEndpoints(), restIn, restOut)
-			go cmd.StartComponent(workerCTX, log, InputWorker, restIn, restOut, response)
 		}
-		time.Sleep(1 * time.Hour)
+		go net.ListenForBroadcastMessage(log, *port, udpMainSol) // udpCTX?
+		response := <-udpMainSol                                 // blocking (on both ends)
+		if !(response.Message == "HELLO?") {
+			log.Info("Start SolTCP")
+			workerCancel()
+			wg.Add(1)
+			go net.StartTCPServer(log, ip, *port, cmd.GetSolEndpoints(), restIn, restOut)
+			go func() {
+				defer wg.Done()
+				cmd.StartSol(workerCTX, log, inputWorker, udpMainSol, restIn, restOut)
+			}()
+		} else {
+			log.Info("Start ComponentTCP")
+			udpCancel()
+			workerCancel()
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				net.StartTCPServer(log, ip, *port, cmd.GetComponentEndpoints(), restIn, restOut)
+				cmd.StartComponent(workerCTX, log, inputWorker, restIn, restOut, response.Message)
+			}()
+		}
+		wg.Wait()
 	}
 	log.Info("Exiting")
 	os.Exit(0)
