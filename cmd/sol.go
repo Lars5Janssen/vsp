@@ -34,28 +34,9 @@ type ComponentEntry struct {
 	Port            int
 	TimeIntegration time.Time
 	TimeInteraktion time.Time
-	Status          ComponentStatus
-	ActiveStatus    ActiveStatus
+	Status          utils.ComponentStatus
+	ActiveStatus    utils.ActiveStatus
 }
-
-type ComponentStatus int
-
-const (
-	OK                 ComponentStatus = 200
-	Unauthorized       ComponentStatus = 401
-	Forbidden          ComponentStatus = 403
-	NotFound           ComponentStatus = 404
-	Conflict           ComponentStatus = 409
-	PreconditionFailed ComponentStatus = 412
-)
-
-type ActiveStatus string
-
-const (
-	Active       ActiveStatus = "active"
-	Left         ActiveStatus = "left"
-	Disconnected ActiveStatus = "disconnected"
-)
 
 var log *slog.Logger
 
@@ -87,8 +68,8 @@ func StartSol(
 		Port:            sol.Port,
 		TimeIntegration: time.Now(),
 		TimeInteraktion: time.Now(),
-		Status:          OK,
-		ActiveStatus:    Active,
+		Status:          utils.OK,
+		ActiveStatus:    utils.Active,
 	}
 
 	// Max active components
@@ -161,7 +142,7 @@ func StartSol(
 
 func checkInteractionTimes() {
 	for uuid, entry := range solList {
-		if entry.ActiveStatus == Active {
+		if entry.ActiveStatus == utils.Active {
 			if time.Since(entry.TimeInteraktion) > 60*time.Second {
 				err := sendRequestsToActiveComponents(uuid)
 				if err != nil {
@@ -198,17 +179,17 @@ func sendRequestsToActiveComponents(uuid int) error {
 
 	if resp.StatusCode != http.StatusOK {
 		log.Error("Received non-OK response", slog.Int("statusCode", resp.StatusCode))
-		entry.ActiveStatus = Disconnected
-		entry.Status = ComponentStatus(resp.StatusCode)
+		entry.ActiveStatus = utils.Disconnected
+		entry.Status = utils.ComponentStatus(resp.StatusCode)
 	} else {
 		log.Info("Successfully sent GET request", slog.Int("uuid", uuid))
 		var heartBeatRequestModel utils.HeartBeatRequestModel
 		err := json.NewDecoder(resp.Body).Decode(&heartBeatRequestModel)
 		if err != nil {
 			log.Error("Failed to decode response body", slog.String("error", err.Error()))
-			entry.Status = ComponentStatus(resp.StatusCode)
+			entry.Status = utils.ComponentStatus(resp.StatusCode)
 		} else {
-			entry.Status = ComponentStatus(heartBeatRequestModel.STATUS)
+			entry.Status = utils.ComponentStatus(heartBeatRequestModel.STATUS)
 			log.Info("Successfully parsed response body", slog.Any("heartBeatRequestModel", heartBeatRequestModel))
 		}
 	}
@@ -236,13 +217,13 @@ func registerComponentBySol(response n.RestIn) n.RestOut {
 	}
 
 	// Check if all the info from the component is correct
-	if checkConflict(registerRequestModel, response.IpAndPort) != OK {
+	if checkConflict(registerRequestModel, response.IpAndPort) != utils.OK {
 		return n.RestOut{http.StatusConflict, nil}
-	} else if checkUnauthorized(registerRequestModel) != OK {
+	} else if checkUnauthorized(registerRequestModel) != utils.OK {
 		return n.RestOut{http.StatusUnauthorized, nil}
-	} else if checkNoRoomLeft() != OK {
+	} else if checkNoRoomLeft() != utils.OK {
 		return n.RestOut{http.StatusForbidden, nil}
-	} else if checkNotFound(registerRequestModel) == OK { // If the component is already in the list, return 409 Conflict
+	} else if checkNotFound(registerRequestModel) == utils.OK { // If the component is already in the list, return 409 Conflict
 		return n.RestOut{http.StatusConflict, nil}
 	}
 
@@ -253,8 +234,8 @@ func registerComponentBySol(response n.RestIn) n.RestOut {
 		Port:            registerRequestModel.COMTCP,
 		TimeIntegration: time.Now(),
 		TimeInteraktion: time.Now(),
-		Status:          OK,
-		ActiveStatus:    Active,
+		Status:          utils.OK,
+		ActiveStatus:    utils.Active,
 	}
 
 	return n.RestOut{http.StatusOK, nil}
@@ -277,17 +258,17 @@ func checkAvailabilityFromComponent(response n.RestIn) n.RestOut {
 	}
 
 	// Check if info correct
-	if checkNotFound(registerRequestModel) != OK {
+	if checkNotFound(registerRequestModel) != utils.OK {
 		return n.RestOut{http.StatusNotFound, nil}
-	} else if checkUnauthorized(registerRequestModel) != OK {
+	} else if checkUnauthorized(registerRequestModel) != utils.OK {
 		return n.RestOut{http.StatusUnauthorized, nil}
-	} else if checkConflict(registerRequestModel, response.EndpointAddr) != OK {
+	} else if checkConflict(registerRequestModel, response.EndpointAddr) != utils.OK {
 		return n.RestOut{http.StatusConflict, nil}
 	}
 
 	// Update the time of interaction
 	if entry, exists := solList[registerRequestModel.COMPONENT]; exists {
-		entry.ActiveStatus = Active
+		entry.ActiveStatus = utils.Active
 		entry.TimeInteraktion = time.Now()
 		solList[registerRequestModel.COMPONENT] = entry
 	}
@@ -314,7 +295,7 @@ func sendHeartBeatBack(response n.RestIn) n.RestOut {
 		COMPONENT: sol.SolUUID,
 		COMIP:     sol.IPAddress,
 		COMTCP:    sol.Port,
-		STATUS:    int(OK),
+		STATUS:    int(utils.OK),
 	}
 
 	return n.RestOut{http.StatusOK, heartBeatRequestModel}
@@ -338,7 +319,7 @@ func disconnectComponentFromStar(response n.RestIn) n.RestOut {
 		out.StatusCode = http.StatusBadRequest
 	} else {
 		registerRequestModel.COMPONENT = comUUid
-		if checkNotFound(registerRequestModel) != OK {
+		if checkNotFound(registerRequestModel) != utils.OK {
 			out.StatusCode = http.StatusNotFound
 		} else {
 			comEntry := solList[registerRequestModel.COMPONENT]
@@ -347,7 +328,7 @@ func disconnectComponentFromStar(response n.RestIn) n.RestOut {
 			registerRequestModel.STATUS = int(comEntry.Status)
 			registerRequestModel.SOL = sol.SolUUID
 
-			if checkUnauthorized(registerRequestModel) != OK {
+			if checkUnauthorized(registerRequestModel) != utils.OK {
 				out.StatusCode = http.StatusUnauthorized
 			} else {
 				out.StatusCode = http.StatusOK
@@ -356,7 +337,7 @@ func disconnectComponentFromStar(response n.RestIn) n.RestOut {
 	}
 	// Update the active status of the component
 	if entry, exists := solList[registerRequestModel.COMPONENT]; exists {
-		entry.ActiveStatus = Left
+		entry.ActiveStatus = utils.Left
 		entry.TimeInteraktion = time.Now()
 		solList[registerRequestModel.COMPONENT] = entry
 	}
@@ -460,46 +441,46 @@ func generateStarUUID(log slog.Logger) (string, error) {
 	return hashStr, nil
 }
 
-func checkUnauthorized(r utils.RegisterRequestModel) ComponentStatus {
+func checkUnauthorized(r utils.RegisterRequestModel) utils.ComponentStatus {
 	if r.STAR != sol.StarUUID || r.SOL != sol.SolUUID {
 		// Return 401 Unauthorized
-		return Unauthorized
+		return utils.Unauthorized
 	}
 	// Return 200 OK
-	return OK
+	return utils.OK
 }
 
-func checkNoRoomLeft() ComponentStatus {
+func checkNoRoomLeft() utils.ComponentStatus {
 	count := 0
 	for _, entry := range solList {
-		if entry.ActiveStatus == Active {
+		if entry.ActiveStatus == utils.Active {
 			count++
 		}
 	}
 	if count >= lenOfSolList {
 		// Return 403 No room left
-		return Forbidden
+		return utils.Forbidden
 	}
 	// Return 200 OK
-	return OK
+	return utils.OK
 }
 
-func checkNotFound(r utils.RegisterRequestModel) ComponentStatus {
+func checkNotFound(r utils.RegisterRequestModel) utils.ComponentStatus {
 	if !listContains(r.COMPONENT) {
 		// Return 404 Not Found
-		return NotFound
+		return utils.NotFound
 	}
 	// Return 200 OK
-	return OK
+	return utils.OK
 }
 
-func checkConflict(r utils.RegisterRequestModel, addr string) ComponentStatus {
+func checkConflict(r utils.RegisterRequestModel, addr string) utils.ComponentStatus {
 	// TODO check if the IP address and port are correct (no idea which port is gonna be used) cannot test
 	addrs := strings.Split(addr, ":")
 	port, err := strconv.Atoi(addrs[1])
 	// TODO remove port != 0
 	if err != nil || port == -1 {
-		return Conflict
+		return utils.Conflict
 	}
 	// TODO because i cant test it rn, i will just return 200 OK
 	/*if r.COMIP != addrs[0] || solList[r.COMPONENT].IPAddress != addrs[0] || r.COMTCP != port || r.STATUS != 200 {
@@ -507,14 +488,14 @@ func checkConflict(r utils.RegisterRequestModel, addr string) ComponentStatus {
 		return Conflict
 	}*/
 	// Return 200 OK
-	return OK
+	return utils.OK
 }
 
 func sendDeleteRequests() {
 	for uuid, entry := range solList {
 		if uuid == sol.SolUUID {
 			continue
-		} else if entry.ActiveStatus == Disconnected || entry.ActiveStatus == Left {
+		} else if entry.ActiveStatus == utils.Disconnected || entry.ActiveStatus == utils.Left {
 			continue
 		}
 

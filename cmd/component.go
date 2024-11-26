@@ -3,15 +3,26 @@ package cmd
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	n "github.com/Lars5Janssen/vsp/net"
+	"github.com/Lars5Janssen/vsp/utils"
 	"github.com/gin-gonic/gin"
 	"log/slog"
 	"net/http"
-
-	n "github.com/Lars5Janssen/vsp/net"
+	"strconv"
+	"strings"
+	"time"
 )
 
-var component = Component{}
+var component = Component{
+	ComUUID:  0,
+	ComIP:    "",
+	SolUUID:  0,
+	StarUUID: 0,
+	SolIP:    "",
+	SolPort:  0,
+}
+
+var urlPräfix = ""
 
 func StartComponent(
 	ctx context.Context,
@@ -21,52 +32,120 @@ func StartComponent(
 	restOut chan n.RestOut,
 	response string,
 ) {
-	component, _ = parseResponse(response, log)
-
 	log = log.With(slog.String("Component", "Component"))
 	log.Info("Starting as Component")
-	log.Info("Component details: ", slog.Any("Component", component))
+
+	initializeComponent(log, ctx, response)
 
 	// TODO Hier scheint eine Loop logic sein zu müssen damit die Ports available bleiben
-	for true {
-		go n.AttendHTTP(log, restIn, restOut, endpoints) // Will Handle endpoints in this thread
+	go n.AttendHTTP(log, restIn, restOut, endpoints) // Will Handle endpoints in this thread
+
+	log.Info("Componenten values",
+		slog.Int("ComUUID", component.ComUUID),
+		slog.Int("SolUUID", component.SolUUID),
+		slog.Int("StarUUID", component.StarUUID),
+		slog.String("ComIP", component.ComIP),
+		slog.Int("ComPort", component.ComPort),
+		slog.String("SolIP", component.SolIP),
+		slog.Int("SolPort", component.SolPort),
+	)
+
+	// Send Heartbeat to Sol
+	ticker := time.NewTicker(30 * time.Second) // TODO check every 5 seconds or 1 second?
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				sendHeartBeatToSol()
+			}
+		}
+	}()
+
+	for {
+		// Retrieve from user input
+		select {
+		case command := <-commands:
+			if command == "exit" {
+				log.Info("Exiting Component")
+				return
+			}
+		default:
+		}
 	}
 }
 
 type Component struct {
-	ComUUID  int    `json:"ComponentUUID"`
+	ComUUID  int    `json:"ComUUID"`
+	ComIP    string `json:"ComIP"`
 	SolUUID  int    `json:"SolUUID"`
 	StarUUID int    `json:"StarUUID"`
+	ComPort  int    `json:"ComPort"`
 	SolIP    string `json:"SolIP"`
-	SolPort  string `json:"SolPort"`
+	SolPort  int    `json:"SolPort"`
 }
 
-func initializeComponent(response string) Component {
-	fmt.Println("Response: ", response)
-	return Component{
-		ComUUID: 1,
-		SolUUID: 1,
-		SolIP:   "",
-	}
+func initializeComponent(log *slog.Logger, ctx context.Context, response string) {
+	component.ComIP = ctx.Value("ip").(string)
+
+	parseResponseIntoComponent(response, log)
+
+	urlPräfix = "http://" + component.SolIP + ":" + strconv.Itoa(component.SolPort)
+
+	registerByStar()
 }
 
-func parseResponse(response string, log *slog.Logger) (Component, error) {
-	var data map[string]interface{}
-	err := json.Unmarshal([]byte(response), &data)
+func parseResponseIntoComponent(response string, log *slog.Logger) {
+	// Bereinigen des Strings, falls nötig (z. B. Ersetzen einzelner Anführungszeichen)
+	cleanedInput := strings.ReplaceAll(response, "\\", "")
+
+	// JSON-Daten unmarshallen
+	var parsedData map[string]interface{}
+	err := json.Unmarshal([]byte(cleanedInput), &parsedData)
+
 	if err != nil {
-		return Component{}, fmt.Errorf("error parsing response: %v", err)
-	}
-	log.Info("Data: ", slog.Any("Data", data))
-
-	component := Component{
-		ComUUID:  int(data["component"].(float64)),
-		SolUUID:  int(data["sol"].(float64)),
-		StarUUID: int(data["star"].(float64)),
-		SolIP:    data["sol-ip"].(string),
-		SolPort:  data["sol-tcp"].(string),
+		log.Error("Error while parsing response")
+		return
 	}
 
-	return component, nil
+	// Daten in struct schreiben
+	for key, value := range parsedData {
+		switch strings.ToLower(key) {
+		case "star":
+			component.StarUUID = int(value.(float64))
+		case "sol":
+			component.SolUUID = int(value.(float64)) // Com UUID des stars?
+		case "solip":
+			component.SolIP = value.(string)
+		case "soltcp":
+			component.SolPort = int(value.(float64))
+		case "component":
+			component.ComUUID = int(value.(float64))
+		}
+	}
+}
+
+func registerByStar() {
+	url := urlPräfix + "/vs/v1/system"
+
+	var reqisterRequestModel = utils.RegisterRequestModel{
+		STAR:      strconv.Itoa(component.StarUUID),
+		SOL:       component.SolUUID,
+		COMPONENT: component.ComUUID,
+		COMIP:     component.ComIP,
+		COMTCP:    component.ComPort,
+		STATUS:    http.StatusOK,
+	}
+
+	jsonRegisterRequest, err := json.Marshal(reqisterRequestModel)
+	if err != nil {
+		log.Error("Error while marshalling data", slog.String("error", err.Error()))
+		return
+	}
+
+	_, err = http.NewRequest("POST", url, strings.NewReader(string(jsonRegisterRequest)))
+	if err != nil {
+		log.Error("Failed to create POST request", slog.String("error", err.Error()))
+	}
 }
 
 /*
@@ -80,6 +159,10 @@ Auch hier kommt eine REST-API zum Einsatz.
 func sendHeartBeatBackToSol(response n.RestIn) n.RestOut {
 	body := gin.H{"message": "test"}
 	return n.RestOut{http.StatusOK, body}
+}
+
+func sendHeartBeatToSol() {
+
 }
 
 /*

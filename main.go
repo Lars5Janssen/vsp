@@ -69,7 +69,7 @@ func main() {
 		}
 		go net.ListenForBroadcastMessage(log, *port, udpMainSol) // udpCTX?
 		response := <-udpMainSol                                 // blocking (on both ends)
-		if !(response.Message == "HELLO?") {
+		if response.Message == "HELLO?" {
 			log.Info("Start SolTCP")
 			workerCancel()
 			wg.Add(1)
