@@ -114,5 +114,4 @@ func ListenForBroadcastMessage(
 		channel <- receivedUdp
 	}
 	udpServer.Close()
-
 }
