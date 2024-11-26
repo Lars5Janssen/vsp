@@ -22,7 +22,7 @@ var component = Component{
 	SolPort:  0,
 }
 
-var urlPräfix = ""
+var urlSolPräfix = ""
 
 func StartComponent(
 	ctx context.Context,
@@ -51,12 +51,24 @@ func StartComponent(
 	)
 
 	// Send Heartbeat to Sol
-	ticker := time.NewTicker(30 * time.Second) // TODO check every 5 seconds or 1 second?
+
+	ticker := time.NewTicker(5 * time.Second) // TODO check every 5 seconds or 1 second?
 	go func() {
 		for {
 			select {
 			case <-ticker.C:
-				sendHeartBeatToSol()
+				log.Info("Sending Heartbeat to SOL")
+				if !sendHeartBeatToSol(log) {
+					log.Error("Failed to send heartbeat to SOL")
+					time.Sleep(5 * time.Second)
+					if !sendHeartBeatToSol(log) {
+						time.Sleep(5 * time.Second)
+						if !sendHeartBeatToSol(log) {
+							log.Error("Failed to send heartbeat to SOL three time. Exiting Component")
+							return
+						}
+					}
+				}
 			}
 		}
 	}()
@@ -82,14 +94,16 @@ type Component struct {
 	ComPort  int    `json:"ComPort"`
 	SolIP    string `json:"SolIP"`
 	SolPort  int    `json:"SolPort"`
+	Status   int    `json:"Status"`
 }
 
 func initializeComponent(log *slog.Logger, ctx context.Context, response string) {
 	component.ComIP = ctx.Value("ip").(string)
+	component.Status = http.StatusOK // TODO ist das zu beginn wirklich so?
 
 	parseResponseIntoComponent(response, log)
 
-	urlPräfix = "http://" + component.SolIP + ":" + strconv.Itoa(component.SolPort)
+	urlSolPräfix = "http://" + component.SolIP + ":" + strconv.Itoa(component.SolPort)
 
 	registerByStar()
 }
@@ -125,7 +139,7 @@ func parseResponseIntoComponent(response string, log *slog.Logger) {
 }
 
 func registerByStar() {
-	url := urlPräfix + "/vs/v1/system"
+	url := urlSolPräfix + "/vs/v1/system"
 
 	var reqisterRequestModel = utils.RegisterRequestModel{
 		STAR:      strconv.Itoa(component.StarUUID),
@@ -142,9 +156,25 @@ func registerByStar() {
 		return
 	}
 
-	_, err = http.NewRequest("POST", url, strings.NewReader(string(jsonRegisterRequest)))
+	req, err := http.NewRequest("POST", url, strings.NewReader(string(jsonRegisterRequest)))
 	if err != nil {
 		log.Error("Failed to create POST request", slog.String("error", err.Error()))
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		switch resp.StatusCode {
+		case http.StatusOK:
+			log.Info("Successfully registered by Sol")
+		case http.StatusUnauthorized:
+			log.Error("Unauthorized to register by Sol")
+		case http.StatusForbidden:
+			log.Error("No room left")
+		case http.StatusConflict:
+			log.Error("The request was invalid")
+		}
+		return
 	}
 }
 
@@ -161,8 +191,37 @@ func sendHeartBeatBackToSol(response n.RestIn) n.RestOut {
 	return n.RestOut{http.StatusOK, body}
 }
 
-func sendHeartBeatToSol() {
+func sendHeartBeatToSol(log *slog.Logger) bool {
+	url := urlSolPräfix + "/vs/v1/system/" + strconv.Itoa(component.ComUUID)
 
+	var heartBeatRequestModel = utils.HeartBeatRequestModel{
+		STAR:      strconv.Itoa(component.StarUUID),
+		SOL:       component.SolUUID,
+		COMPONENT: component.ComUUID,
+		COMIP:     component.ComIP,
+		COMTCP:    component.ComPort,
+		STATUS:    component.Status,
+	}
+
+	jsonHeartBeatRequest, err := json.Marshal(heartBeatRequestModel)
+	if err != nil {
+		log.Error("Error while marshalling data", slog.String("error", err.Error()))
+		return false
+	}
+
+	req, err := http.NewRequest("PATCH", url, strings.NewReader(string(jsonHeartBeatRequest)))
+	if err != nil {
+		log.Error("Failed to create POST request", slog.String("error", err.Error()))
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		log.Error("Failed to send heartbeat to SOL:", slog.String("error", err.Error()))
+		return false
+	}
+
+	return true
 }
 
 /*
@@ -178,6 +237,10 @@ func disconnectFromStar(response n.RestIn) n.RestOut {
 
 func notAvailable(_ n.RestIn) n.RestOut {
 	return n.RestOut{http.StatusNotFound, nil}
+}
+
+func iAmNotSol(_ n.RestIn) n.RestOut {
+	return n.RestOut{http.StatusUnauthorized, nil}
 }
 
 /*

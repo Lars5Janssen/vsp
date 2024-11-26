@@ -16,7 +16,7 @@ var endpoints = []n.Endpoint{
 	{
 		Name: []string{"/vs/v1/system/:comUUID"}, // TODO :comUUID muss definiert werden
 		AcceptedMethods: map[n.Method]n.Handler{
-			n.PATCH: notAvailable,
+			n.PATCH: iAmNotSol,
 		},
 	},
 	{
