@@ -88,6 +88,13 @@ func main() {
 				defer wg.Done()
 				cmd.StartComponent(workerCTX, log, inputWorker, restIn, restOut)
 			}()
+			workerCancel()
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				net.StartTCPServer(log, ip, *port, cmd.GetComponentEndpoints(), restIn, restOut)
+				cmd.StartComponent(workerCTX, log, inputWorker, restIn, restOut, response.Message)
+			}()
 		}
 		wg.Wait()
 	}
