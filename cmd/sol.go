@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"math/big"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -29,6 +30,7 @@ type Sol struct {
 }
 
 type ComponentEntry struct {
+	// TODO Comuuid rausnehmen?
 	ComUUID         int
 	IPAddress       string
 	Port            int
@@ -64,6 +66,10 @@ var sol Sol
 var solList = map[int]ComponentEntry{}
 
 var lenOfSolList int
+
+var nonce = 1
+
+var msgList = map[string]utils.MessageModel{}
 
 func StartSol(
 	ctx context.Context,
@@ -281,7 +287,7 @@ func checkAvailabilityFromComponent(response n.RestIn) n.RestOut {
 		return n.RestOut{http.StatusNotFound, nil}
 	} else if checkUnauthorized(registerRequestModel) != OK {
 		return n.RestOut{http.StatusUnauthorized, nil}
-	} else if checkConflict(registerRequestModel, response.EndpointAddr) != OK {
+	} else if checkConflict(registerRequestModel, response.IpAndPort) != OK {
 		return n.RestOut{http.StatusConflict, nil}
 	}
 
@@ -369,6 +375,7 @@ func disconnectComponentFromStar(response n.RestIn) n.RestOut {
 createAndSaveMessage Aufgabe 2.1
 */
 func createAndSaveMessage(response n.RestIn) n.RestOut {
+	// TODO warum soll SOL eine Sonderbehandlung bekommen?
 	var message utils.MessageRequestModel
 	err := response.Context.ShouldBindJSON(&message)
 	if err != nil {
@@ -381,10 +388,32 @@ func createAndSaveMessage(response n.RestIn) n.RestOut {
 	}
 	subject := strings.Split(message.SUBJECT, "\n")[0]
 	subject = strings.ReplaceAll(subject, "\r", "")
-	// TODO create msgUUID and create nonce counter
-	// TODO save message
 
-	body := gin.H{"message": "test"}
+	// Regular expression for email validation
+	emailRegex := `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
+	re := regexp.MustCompile(emailRegex)
+	var msgId string
+	if re.MatchString(message.ORIGIN) {
+		msgId = strconv.Itoa(nonce) + "@" + message.SENDER
+	} else {
+		msgId = strconv.Itoa(nonce) + "@" + message.ORIGIN
+	}
+	nonce++
+
+	// Add the message to the list
+	msgList[msgId] = utils.MessageModel{
+		STAR:    message.STAR,
+		ORIGIN:  message.ORIGIN,
+		SENDER:  message.SENDER,
+		VERSION: "1",
+		CREATED: strconv.FormatInt(time.Now().Unix(), 10),
+		CHANGED: message.CREATED,
+		SUBJECT: subject,
+		MESSAGE: message.MESSAGE,
+		STATUS:  "active",
+	}
+
+	body := gin.H{"msg-id": msgId}
 	return n.RestOut{http.StatusOK, body}
 }
 
@@ -395,6 +424,10 @@ func deleteMessage(response n.RestIn) n.RestOut {
 	body := gin.H{"message": "test"}
 	return n.RestOut{http.StatusOK, body}
 }
+
+/*
+Hilfsmethoden
+*/
 
 func initializeSol(log *slog.Logger, ctx context.Context) {
 	// ComUUID from Sol

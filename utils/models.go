@@ -29,7 +29,7 @@ type MessageRequestModel struct { // 2.1
 	STAR   string "STAR-UUID"
 	ORIGIN string "COM-UUID | EMAIL"
 	// TODO Entweder die COM-UUID die hier eingetragen ist oder der vom Sender
-	// TODO wenn leer => 422
+	// TODO wenn leer => 412
 	SENDER string "SENDER-UUID | '' "
 	MSGID  string "MSG-UUID | '' "
 	// TODO setzt dann bei der Speicherung die <MSG-UUID> auf einen noch nicht vergebenen Wert.
@@ -38,11 +38,23 @@ type MessageRequestModel struct { // 2.1
 	VERSION string "'1' | '' "
 	CREATED string "<TIMESTAMP>"
 	CHANGED string "<TIMESTAMP>"
-	SUBJECT string "<STRING> | UTF-8" // TODO wenn leer => 422
+	SUBJECT string "<STRING> | UTF-8" // TODO wenn leer => 412
 	// TODO Dieses wird zwar in beliebiger Länge angenommen, aber bei der Weiterverarbeitung
 	// TODO (Weiterleiten, Speicherung, ...) gekürzt, und zwar bis zum ersten NEWLINE-Zeichen
 	// TODO Alle „CARRIAGE RETURN“-Zeichen werden vor der weiteren Verarbeitung aus dem Betreff gelöscht.
 	MESSAGE string "<STRING> | UTF-8"
+}
+
+type MessageModel struct { // 2.1
+	STAR    string "STAR-UUID"
+	ORIGIN  string "COM-UUID | EMAIL"
+	SENDER  string "SENDER-UUID | '' "
+	VERSION string "'1' | '' "
+	CREATED string "<TIMESTAMP>"
+	CHANGED string "<TIMESTAMP>"
+	SUBJECT string "<STRING> | UTF-8"
+	MESSAGE string "<STRING> | UTF-8"
+	STATUS  string "'active' | ''"
 }
 
 type Response struct {
