@@ -1,6 +1,8 @@
-package cmd
+package sol
 
-import n "github.com/Lars5Janssen/vsp/net"
+import (
+	n "github.com/Lars5Janssen/vsp/net"
+)
 
 func GetSolEndpoints() []n.Endpoint {
 	return solEndpoints
@@ -16,7 +18,7 @@ var solEndpoints = []n.Endpoint{
 	{
 		Name: []string{"/vs/v1/system/:comUUID"},
 		AcceptedMethods: map[n.Method]n.Handler{
-			n.PATCH: checkAvailabilityFromComponent, // TODO siehe methodenkommentar
+			n.PATCH: checkAvailabilityFromComponent, // siehe methodenkommentar
 		},
 	},
 	{
@@ -28,7 +30,7 @@ var solEndpoints = []n.Endpoint{
 		},
 	},
 	{
-		Name: []string{"/vs/v1/messages/"},
+		Name: []string{"/vs/v1/messages"},
 		AcceptedMethods: map[n.Method]n.Handler{
 			n.POST: createAndSaveMessage,
 		},
