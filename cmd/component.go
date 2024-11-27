@@ -17,12 +17,13 @@ var component = Component{
 	ComUUID:  0,
 	ComIP:    "",
 	SolUUID:  0,
-	StarUUID: 0,
+	StarUUID: "",
 	SolIP:    "",
 	SolPort:  0,
 }
 
 var urlSolPräfix = ""
+var runComponentThread = true
 
 func StartComponent(
 	ctx context.Context,
@@ -40,10 +41,12 @@ func StartComponent(
 	// TODO Hier scheint eine Loop logic sein zu müssen damit die Ports available bleiben
 	go n.AttendHTTP(log, restIn, restOut, endpoints) // Will Handle endpoints in this thread
 
+	registerByStar()
+
 	log.Info("Componenten values",
 		slog.Int("ComUUID", component.ComUUID),
 		slog.Int("SolUUID", component.SolUUID),
-		slog.Int("StarUUID", component.StarUUID),
+		slog.String("StarUUID", component.StarUUID),
 		slog.String("ComIP", component.ComIP),
 		slog.Int("ComPort", component.ComPort),
 		slog.String("SolIP", component.SolIP),
@@ -51,21 +54,18 @@ func StartComponent(
 	)
 
 	// Send Heartbeat to Sol
-
-	ticker := time.NewTicker(5 * time.Second) // TODO check every 5 seconds or 1 second?
+	ticker := time.NewTicker(30 * time.Second)
 	go func() {
-		for {
+		for runComponentThread {
 			select {
 			case <-ticker.C:
-				log.Info("Sending Heartbeat to SOL")
 				if !sendHeartBeatToSol(log) {
-					log.Error("Failed to send heartbeat to SOL")
-					time.Sleep(5 * time.Second)
+					time.Sleep(10 * time.Second)
 					if !sendHeartBeatToSol(log) {
-						time.Sleep(5 * time.Second)
+						time.Sleep(20 * time.Second)
 						if !sendHeartBeatToSol(log) {
 							log.Error("Failed to send heartbeat to SOL three time. Exiting Component")
-							return
+							setRunComponentThread(false)
 						}
 					}
 				}
@@ -73,12 +73,13 @@ func StartComponent(
 		}
 	}()
 
-	for {
+	for runComponentThread {
 		// Retrieve from user input
 		select {
 		case command := <-commands:
 			if command == "exit" {
 				log.Info("Exiting Component")
+				disconnectAfterExit()
 				return
 			}
 		default:
@@ -90,7 +91,7 @@ type Component struct {
 	ComUUID  int    `json:"ComUUID"`
 	ComIP    string `json:"ComIP"`
 	SolUUID  int    `json:"SolUUID"`
-	StarUUID int    `json:"StarUUID"`
+	StarUUID string `json:"StarUUID"`
 	ComPort  int    `json:"ComPort"`
 	SolIP    string `json:"SolIP"`
 	SolPort  int    `json:"SolPort"`
@@ -104,8 +105,6 @@ func initializeComponent(log *slog.Logger, ctx context.Context, response string)
 	parseResponseIntoComponent(response, log)
 
 	urlSolPräfix = "http://" + component.SolIP + ":" + strconv.Itoa(component.SolPort)
-
-	registerByStar()
 }
 
 func parseResponseIntoComponent(response string, log *slog.Logger) {
@@ -125,7 +124,7 @@ func parseResponseIntoComponent(response string, log *slog.Logger) {
 	for key, value := range parsedData {
 		switch strings.ToLower(key) {
 		case "star":
-			component.StarUUID = int(value.(float64))
+			component.StarUUID = value.(string)
 		case "sol":
 			component.SolUUID = int(value.(float64)) // Com UUID des stars?
 		case "solip":
@@ -142,7 +141,7 @@ func registerByStar() {
 	url := urlSolPräfix + "/vs/v1/system"
 
 	var reqisterRequestModel = utils.RegisterRequestModel{
-		STAR:      strconv.Itoa(component.StarUUID),
+		STAR:      component.StarUUID,
 		SOL:       component.SolUUID,
 		COMPONENT: component.ComUUID,
 		COMIP:     component.ComIP,
@@ -180,6 +179,7 @@ func registerByStar() {
 
 /*
 sendHeartBeatBackToSol 1.1 Pflege des Sterns – Kontrolle der Komponenten
+sendHeartBeatToSol 1.1 Pflege des Sterns – Kontrolle der Komponenten
 
 Wenn SOL für eine aktive Komponente 60 Sekunden nach der letzten Meldung keine neue Meldung mit einem Status von „200“
 erhält, baut SOL zum <STARPORT>/tcp der Komponente eine UNICAST-Verbindung auf und kontrolliert selbst, ob die
@@ -187,15 +187,34 @@ Komponente noch aktiv und funktionsfähig ist. Diese Kontrollmöglichkeit muss S
 Auch hier kommt eine REST-API zum Einsatz.
 */
 func sendHeartBeatBackToSol(response n.RestIn) n.RestOut {
-	body := gin.H{"message": "test"}
-	return n.RestOut{http.StatusOK, body}
+	log.Info("Received Heartbeat from SOL")
+	model := utils.HeartBeatRequestModel{
+		STAR:      component.StarUUID,
+		SOL:       component.SolUUID,
+		COMPONENT: component.ComUUID,
+		COMIP:     component.ComIP,
+		COMTCP:    component.ComPort,
+		STATUS:    component.Status,
+	}
+
+	if response.Context.Query("star") != component.StarUUID {
+		return n.RestOut{StatusCode: http.StatusUnauthorized}
+	}
+
+	comUUID := response.Context.Param("comUUID?star=starUUID")
+
+	if comUUID != "" || comUUID != strconv.Itoa(component.ComUUID) {
+		return n.RestOut{StatusCode: http.StatusUnauthorized}
+	}
+	return n.RestOut{StatusCode: http.StatusOK, Body: model}
 }
 
 func sendHeartBeatToSol(log *slog.Logger) bool {
+	log.Info("Sending Heartbeat to SOL")
 	url := urlSolPräfix + "/vs/v1/system/" + strconv.Itoa(component.ComUUID)
 
 	var heartBeatRequestModel = utils.HeartBeatRequestModel{
-		STAR:      strconv.Itoa(component.StarUUID),
+		STAR:      component.StarUUID,
 		SOL:       component.SolUUID,
 		COMPONENT: component.ComUUID,
 		COMIP:     component.ComIP,
@@ -215,9 +234,14 @@ func sendHeartBeatToSol(log *slog.Logger) bool {
 	}
 
 	client := &http.Client{}
+	// LOOP for Time meaby here?
 	resp, err := client.Do(req)
-	if err != nil || resp.StatusCode != http.StatusOK {
+	if err != nil {
 		log.Error("Failed to send heartbeat to SOL:", slog.String("error", err.Error()))
+		return false
+	}
+	if resp.StatusCode != http.StatusOK {
+		log.Error("Failed to send heartbeat to SOL:", slog.Int("status", resp.StatusCode))
 		return false
 	}
 
@@ -230,17 +254,60 @@ Aufgabe 1.3 disconnectFromStar Pflege des Sterns – Abmelden von SOL
 Wenn die Komponente, die gerade aktiv den Stern „managed“ (also SOL) den „EXIT“Befehl bekommt, werden von ihr alle
 aktiven Komponenten im Stern einzeln kontaktiert:
 */
-func disconnectFromStar(response n.RestIn) n.RestOut {
-	body := gin.H{"message": "test"}
-	return n.RestOut{http.StatusOK, body}
+func disconnectFromStar() bool {
+	log.Info("Disconnect From Star")
+	url := urlSolPräfix + "/vs/v1/system/" + strconv.Itoa(component.ComUUID) + "?star=" + component.StarUUID
+
+	req, err := http.NewRequest("DELETE", url, nil)
+	if err != nil {
+		log.Error("Failed to create DELETE request", slog.String("error", err.Error()))
+	}
+
+	client := &http.Client{}
+	// LOOP for Time meaby here?
+	_, err = client.Do(req)
+	if err != nil {
+		log.Error("Failed to send request to SOL: ", slog.String("error", err.Error()))
+		/*
+			Die sich abmeldende Komponente beendet sich selbst, auch bei einem Statuscode, der
+			einen Fehler signalisiert. - Zitat aus der Aufgabe 1.3
+		*/
+		setRunComponentThread(false)
+		return true
+	}
+	return false
 }
 
-func notAvailable(_ n.RestIn) n.RestOut {
-	return n.RestOut{http.StatusNotFound, nil}
-}
+/*
+disconnectAfterExit 1.2 Pflege des Sterns – Abmelden von SOL
 
-func iAmNotSol(_ n.RestIn) n.RestOut {
-	return n.RestOut{http.StatusUnauthorized, nil}
+Eine aktive Komponente, die sich nach einem „EXIT“-Befehl bei SOL abmeldet, baut
+eine UNICAST-Verbindung auf. Wenn SOL nicht erreichbar ist, wird es nach 10 bzw. 20
+Sekunden nochmal versucht. Wenn dann immer noch keine Verbindung zustande
+kommt, beendet sich die Komponente selbst.
+*/
+func disconnectAfterExit() {
+	ticker := time.NewTicker(10 * time.Second)
+	go func() {
+		for runComponentThread {
+			select {
+			case <-ticker.C:
+				if !disconnectFromStar() {
+					log.Error("Failed to disconnect from star")
+					time.Sleep(10 * time.Second)
+					if !disconnectFromStar() {
+						time.Sleep(20 * time.Second)
+						if !disconnectFromStar() {
+							log.Error("Failed to disconnect from star three time. Exiting Component")
+							setRunComponentThread(false)
+						}
+					}
+				}
+			}
+		}
+	}()
+
+	// TODO LOOP
 }
 
 /*
@@ -248,7 +315,7 @@ createOrForwardMessage nutzt das MessageRequestModel 2.1
 */
 func createOrForwardMessage(response n.RestIn) n.RestOut {
 	body := gin.H{"message": "test"}
-	return n.RestOut{http.StatusOK, body}
+	return n.RestOut{StatusCode: http.StatusOK, Body: body}
 }
 
 /*
@@ -256,7 +323,7 @@ Aufgabe 2.3 getListOfAllMessages
 */
 func getListOfAllMessages(response n.RestIn) n.RestOut {
 	body := gin.H{"message": "test"}
-	return n.RestOut{http.StatusOK, body}
+	return n.RestOut{StatusCode: http.StatusOK, Body: body}
 }
 
 /*
@@ -264,7 +331,7 @@ Aufgabe 2.3 getMessageByUUID
 */
 func getMessageByUUID(response n.RestIn) n.RestOut {
 	body := gin.H{"message": "test"}
-	return n.RestOut{http.StatusOK, body}
+	return n.RestOut{StatusCode: http.StatusOK, Body: body}
 }
 
 /*
@@ -272,14 +339,21 @@ func getMessageByUUID(response n.RestIn) n.RestOut {
 */
 func forwardDeletingMessages(response n.RestIn) n.RestOut {
 	body := gin.H{"message": "test"}
-	return n.RestOut{http.StatusOK, body}
+	return n.RestOut{StatusCode: http.StatusOK, Body: body}
 }
 
-func test(r n.RestIn) n.RestOut {
-	body := gin.H{"message": "test"}
-	return n.RestOut{http.StatusOK, body}
+/**
+	Helper Methods
+ **/
+
+func notAvailable(_ n.RestIn) n.RestOut {
+	return n.RestOut{StatusCode: http.StatusNotFound}
 }
-func testDELETE(r n.RestIn) n.RestOut {
-	body := gin.H{"message": "test"}
-	return n.RestOut{http.StatusOK, body}
+
+func iAmNotSol(_ n.RestIn) n.RestOut {
+	return n.RestOut{StatusCode: http.StatusUnauthorized}
+}
+
+func setRunComponentThread(value bool) {
+	runComponentThread = value
 }

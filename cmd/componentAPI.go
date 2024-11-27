@@ -10,13 +10,13 @@ var endpoints = []n.Endpoint{
 	{
 		Name: []string{"/vs/v1/system"}, // component an sol
 		AcceptedMethods: map[n.Method]n.Handler{
-			n.POST: notAvailable,
+			n.POST: iAmNotSol, // unauthorized
 		},
 	},
 	{
 		Name: []string{"/vs/v1/system/:comUUID"}, // TODO :comUUID muss definiert werden
 		AcceptedMethods: map[n.Method]n.Handler{
-			n.PATCH: iAmNotSol,
+			n.PATCH: iAmNotSol, // unauthorized
 		},
 	},
 	{
@@ -24,7 +24,7 @@ var endpoints = []n.Endpoint{
 		AcceptedMethods: map[n.Method]n.Handler{
 			n.GET: sendHeartBeatBackToSol,
 			// Endpunkt fuer Sol meldet sich von Stern ab
-			n.DELETE: disconnectFromStar,
+			n.DELETE: iAmNotSol, // unauthorized
 		},
 	},
 	{
