@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/Lars5Janssen/vsp/cmd"
 	"github.com/Lars5Janssen/vsp/cmd/component"
@@ -24,6 +25,8 @@ func main() {
 	// Parse command-line arguments
 	port := flag.Int("port", 8006, "Port to run the server on")                     // -port=8006
 	rerun := flag.Bool("rerun", false, "Enable this flag to automatically restart") // -rerun
+	sleep := flag.Bool("sleep", false, "Enable this flag to sleep once at start")
+	stopIfSol := flag.Bool("killSol", false, "Stop if the process would be sol")
 	maxActiveComponents := flag.Int("maxActiveComponents", 4,
 		"Maximum number of active components") // -maxActiveComponents=4
 	flag.Parse()
@@ -40,13 +43,15 @@ func main() {
 		slog.String("Component", "Main"),
 		slog.Int("Port", *port),
 		slog.Bool("ReRun?", *rerun),
+		slog.Bool("Sleep?", *sleep),
+		slog.Bool("killSol?", *stopIfSol),
 		slog.Int("MaxActiveComponents", *maxActiveComponents),
 	)
 
 	// Channels, Contexts & WaitGroup (Thread Stuff)
 	// Channels:
-	inputWorker := make(chan string) // Input -> Worker
-	udpMainSol := make(chan net.UDP) // UDP -> SOL/Main
+	inputWorker := make(chan string)    // Input -> Worker
+	udpMainSol := make(chan net.UDP, 1) // UDP -> SOL/Main
 	restIn := make(chan net.RestIn)
 	restOut := make(chan net.RestOut)
 	var wg sync.WaitGroup
@@ -62,29 +67,52 @@ func main() {
 
 	go cmd.StartUserInput(log, inputWorker, workerCancel, udpCancel)
 
+	/* Nur um organisch zwei Docker Container auf sol und component zuzuteilen.
+		Ist die Flag hierzu gesetzt tendiert der Container dazu Component zu werden. */
+	if *sleep {
+		log.Info("Sleep flag was set. Waiting 8 Seconds")
+		time.Sleep(8 * time.Second)
+	}
+
 	firstRun := true
+	// TODO please refactor too much code in one loop
 	for *rerun || firstRun {
 		firstRun = false
-		err := net.SendHello(log, *port)
-		if err != nil {
-			return
-		}
+
 		go net.ListenForBroadcastMessage(log, *port, udpMainSol) // udpCTX?
-		response := <-udpMainSol                                 // blocking (on both ends)
-		if !(response.Message == "HELLO?") {
-			log.Info("Start SolTCP")
-			workerCancel()
+
+		var response net.UDP
+		noMessage := true
+
+		for i := 0; i < 2; i++ {
+			time.Sleep(2 * time.Second)
+			err := net.SendHello(log, *port)
+			if err != nil {
+				log.Error("Could not Send Hello")
+				return
+			}
+
+			if len(udpMainSol) == cap(udpMainSol) {
+				noMessage = false
+				break
+			} else {
+				log.Debug("No UDP message recived, timing out")
+			}
+		}
+
+		if noMessage && !*stopIfSol {
+			log.Info("Starting as Sol")
 			wg.Add(1)
 			go net.StartTCPServer(log, ip, *port, sol.GetSolEndpoints(), restIn, restOut)
 			go func() {
 				defer wg.Done()
 				sol.StartSol(workerCTX, log, inputWorker, udpMainSol, restIn, restOut)
 			}()
-			udpMainSol <- response
+		} else if *stopIfSol {
+			log.Info("Would be sol, but flag is set, stopping")
 		} else {
-			log.Info("Start ComponentTCP")
+			log.Info("Starting as Component")
 			udpCancel()
-			workerCancel()
 			wg.Add(1)
 			go net.StartTCPServer(log, ip, *port, component.GetComponentEndpoints(), restIn, restOut)
 			go func() {
@@ -94,6 +122,7 @@ func main() {
 		}
 		wg.Wait()
 	}
+
 	log.Info("Exiting")
 	os.Exit(0)
 }

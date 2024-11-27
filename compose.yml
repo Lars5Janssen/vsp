@@ -1,19 +1,22 @@
 services:
   sol:
     build: .
+    entrypoint: app 
     stdin_open: true
     tty: true
+    networks:
+      vs-network:
+        # ipv4_address: 172.18.0.1
+
   component:
     build: .
+    entrypoint: app -sleep -killSol
     stdin_open: true
     tty: true
-    depends_on:
-      sol:
-        condition: service_started
-  # component2:
-  #   build: .
-  #   stdin_open: true
-  #   tty: true
-  #   depends_on:
-  #     component:
-  #       condition: service_started
+    networks:
+      vs-network:
+        # ipv4_address: 172.18.0.2
+
+networks:
+  vs-network:
+    driver: host
