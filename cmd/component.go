@@ -237,11 +237,11 @@ func sendHeartBeatToSol(log *slog.Logger) bool {
 	// LOOP for Time meaby here?
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Error("Failed to send heartbeat to SOL:", slog.String("error", err.Error()))
+		log.Error("Failed to send heartbeat to SOL:"+component.SolIP+":"+strconv.Itoa(component.SolPort), slog.String("error", err.Error()))
 		return false
 	}
 	if resp.StatusCode != http.StatusOK {
-		log.Error("Failed to send heartbeat to SOL:", slog.Int("status", resp.StatusCode))
+		log.Error("Failed to send heartbeat to SOL:"+component.SolIP+": "+strconv.Itoa(component.SolPort)+", Wrong Status: ", slog.Int("status", resp.StatusCode))
 		return false
 	}
 
@@ -278,6 +278,7 @@ func disconnectFromStar() bool {
 	return false
 }
 
+// TODO Ab hier nicht implementiert
 /*
 disconnectAfterExit 1.2 Pflege des Sterns – Abmelden von SOL
 
