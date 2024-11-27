@@ -219,16 +219,16 @@ func registerComponentBySol(response n.RestIn) n.RestOut {
 	err := response.Context.ShouldBindJSON(&registerRequestModel)
 	// If the JSON is not valid, return 401 Unauthorized
 	if err != nil {
-		return n.RestOut{http.StatusUnauthorized, nil}
+		return n.RestOut{StatusCode: http.StatusUnauthorized}
 	}
 
 	// Check if all the info from the component is correct
 	if checkConflict(registerRequestModel, response.IpAndPort) != utils.OK {
-		return n.RestOut{http.StatusConflict, nil}
+		return n.RestOut{StatusCode: http.StatusConflict}
 	} else if checkUnauthorized(registerRequestModel) != utils.OK {
-		return n.RestOut{http.StatusUnauthorized, nil}
+		return n.RestOut{StatusCode: http.StatusUnauthorized}
 	} else if checkNoRoomLeft() != utils.OK {
-		return n.RestOut{http.StatusForbidden, nil}
+		return n.RestOut{StatusCode: http.StatusForbidden}
 	} else if checkNotFound(registerRequestModel) == utils.OK { // If the component is already in the list, return 409 Conflict
 		return n.RestOut{http.StatusConflict, nil}
 	}
@@ -244,7 +244,7 @@ func registerComponentBySol(response n.RestIn) n.RestOut {
 		ActiveStatus:    utils.Active,
 	}
 
-	return n.RestOut{http.StatusOK, nil}
+	return n.RestOut{StatusCode: http.StatusOK}
 }
 
 /*

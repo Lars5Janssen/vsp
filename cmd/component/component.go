@@ -26,25 +26,28 @@ var component = Component{
 var urlSolPräfix = ""
 var runComponentThread = true
 
+var log slog.Logger
+
 func StartComponent(
 	ctx context.Context,
-	log *slog.Logger,
+	logger *slog.Logger,
 	commands chan string,
 	restIn chan n.RestIn,
 	restOut chan n.RestOut,
 	response string,
 ) {
-	log = log.With(slog.String("Component", "Component"))
-	log.Info("Starting as Component")
+	logger = logger.With(slog.String("Component", "Component"))
+	logger.Info("Starting as Component")
+	log = *logger
 
-	initializeComponent(log, ctx, response)
+	initializeComponent(logger, ctx, response)
 
 	// TODO Hier scheint eine Loop logic sein zu müssen damit die Ports available bleiben
-	go n.AttendHTTP(log, restIn, restOut, endpoints) // Will Handle endpoints in this thread
+	go n.AttendHTTP(logger, restIn, restOut, endpoints) // Will Handle endpoints in this thread
 
 	registerByStar()
 
-	log.Info("Componenten values",
+	logger.Info("Componenten values",
 		slog.Int("ComUUID", component.ComUUID),
 		slog.Int("SolUUID", component.SolUUID),
 		slog.String("StarUUID", component.StarUUID),
@@ -60,12 +63,12 @@ func StartComponent(
 		for runComponentThread {
 			select {
 			case <-ticker.C:
-				if !sendHeartBeatToSol(log) {
+				if !sendHeartBeatToSol(logger) {
 					time.Sleep(10 * time.Second)
-					if !sendHeartBeatToSol(log) {
+					if !sendHeartBeatToSol(logger) {
 						time.Sleep(20 * time.Second)
-						if !sendHeartBeatToSol(log) {
-							log.Error("Failed to send heartbeat to SOL three time. Exiting Component")
+						if !sendHeartBeatToSol(logger) {
+							logger.Error("Failed to send heartbeat to SOL three time. Exiting Component")
 							setRunComponentThread(false)
 						}
 					}
@@ -79,7 +82,7 @@ func StartComponent(
 		select {
 		case command := <-commands:
 			if command == "exit" {
-				log.Info("Exiting Component")
+				logger.Info("Exiting Component")
 				disconnectAfterExit()
 				return
 			}
