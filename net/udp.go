@@ -82,12 +82,19 @@ func ListenForBroadcastMessage(
 		slog.String("Addr of Server", udpServer.LocalAddr().String()),
 		slog.String("Netw of Server", udpServer.LocalAddr().Network()),
 	)
+	// udpServer.SetReadDeadline(<-time.After(time.Second))
 	for {
 		buf := make([]byte, 1024)
 		numOfBytes, addr, err := udpServer.ReadFrom(buf)
 		if err != nil {
 			log.Error(fmt.Sprintf("Error during Reading from buffer. Error: %s", err.Error()))
 		}
+
+		isOwn := ownAddrCheck(*log, addr)
+		if isOwn {
+			continue
+		}
+
 		toSize := make([]byte, numOfBytes)
 		for i := range toSize {
 			toSize[i] = buf[i]
@@ -113,5 +120,42 @@ func ListenForBroadcastMessage(
 		}
 		channel <- receivedUdp
 	}
-	udpServer.Close()
+	// udpServer.Close()
+}
+
+func ownAddrCheck(log slog.Logger, addr net.Addr) bool {
+	interfaceAddrs, errAddr := net.InterfaceAddrs()
+	if errAddr != nil {
+		log.Error("Error in getting own Ip")
+		os.Exit(2)
+	}
+
+	ipAddr := convertNetAddrToIp(log, addr)
+
+	for _, a := range interfaceAddrs {
+		aConvert := convertNetAddrToIp(log, a)
+
+		if aConvert.Equal(ipAddr) {
+			log.Debug("Own IP found", "Addr", ipAddr.String(), "From Interface", aConvert.String())
+			return true
+		}
+	}
+	return false
+}
+
+func convertNetAddrToIp(log slog.Logger, addr net.Addr) net.IP {
+	addrString := addr.String()
+	indexOfPort := strings.LastIndex(addrString, ":")
+	if indexOfPort != -1 {
+		addrString = addrString[0:indexOfPort]
+
+	}
+	indexOfMask := strings.LastIndex(addrString, "/")
+	if indexOfMask != -1 {
+		addrString = addrString[0:indexOfMask]
+
+	}
+	conv := net.ParseIP(addrString)
+	// log.Debug("Parsed IP", "Imput", addr.String(), "Out", conv.String())
+	return conv
 }
