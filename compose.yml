@@ -1,9 +1,12 @@
 services:
-  app1:
+  sol:
     build: .
     stdin_open: true
     tty: true
-  app2:
+  component:
     build: .
     stdin_open: true
     tty: true
+    depends_on:
+      sol:
+        condition: service_started
