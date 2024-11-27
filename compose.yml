@@ -1,0 +1,9 @@
+services:
+  app1:
+    build: .
+    stdin_open: true
+    tty: true
+  app2:
+    build: .
+    stdin_open: true
+    tty: true
