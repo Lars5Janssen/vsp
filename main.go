@@ -80,6 +80,7 @@ func main() {
 				defer wg.Done()
 				sol.StartSol(workerCTX, log, inputWorker, udpMainSol, restIn, restOut)
 			}()
+			udpMainSol <- response
 		} else {
 			log.Info("Start ComponentTCP")
 			udpCancel()
