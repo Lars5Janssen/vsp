@@ -26,16 +26,12 @@ type HeartBeatRequestModel struct { // 1.1
 // „created“ ::= aktueller Zeitstempel in UNIX-Notation6
 // „changed“ ::= gleicher Zeitstempel wie „created“
 type MessageRequestModel struct { // 2.1
-	STAR    string "STAR-UUID"
-	ORIGIN  string "COM-UUID | EMAIL"
-	SENDER  string "SENDER-UUID | '' "
-	MSGID   string "MSG-UUID | '' "
 	STAR   string "STAR-UUID"
 	ORIGIN string "COM-UUID | EMAIL"
-	// TODO Entweder die COM-UUID die hier eingetragen ist oder der vom Sender
-	// TODO wenn leer => 422
 	SENDER string "SENDER-UUID | '' "
 	MSGID  string "MSG-UUID | '' "
+	// TODO Entweder die COM-UUID die hier eingetragen ist oder der vom Sender
+	// TODO wenn leer => 422
 	// TODO setzt dann bei der Speicherung die <MSG-UUID> auf einen noch nicht vergebenen Wert.
 	// TODO Die Version einer Nachricht beginnt immer bei „1“.
 	// TODO MSG-UUID := <NUMBER> . „@“ . <COM-UUID> // NUMBER ist ein zähler der Hochgezählt wird.
