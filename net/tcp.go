@@ -89,7 +89,7 @@ func StartTCPServer(
 ) {
 	log = log.With(slog.String("Component", "TCP"))
 
-	router := gin.New()
+	router := gin.Default()
 	for _, v := range endpoints {
 		for _, vv := range v.Name {
 			for k := range v.AcceptedMethods {
