@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log/slog"
+	n "net"
 	"os"
+	"os/exec"
 	"sync"
 	"time"
 
@@ -35,6 +38,14 @@ func main() {
 	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: lvl,
 	}))
+
+	_, err := exec.Command("ip", "addr").Output()
+	if err != nil {
+		log.Error(err.Error())
+	}
+	// fmt.Println(string(cmdOut))
+	adLs, _ := n.InterfaceAddrs()
+	fmt.Println(adLs[1])
 
 	log.Info(
 		"Start of program",
