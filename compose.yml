@@ -10,3 +10,10 @@ services:
     depends_on:
       sol:
         condition: service_started
+  # component2:
+  #   build: .
+  #   stdin_open: true
+  #   tty: true
+  #   depends_on:
+  #     component:
+  #       condition: service_started
