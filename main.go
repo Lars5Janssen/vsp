@@ -78,6 +78,7 @@ func main() {
 		var response net.UDP
 		noMessage := true
 
+		// TODO Timeout verstellbar machen
 		for i := 0; i < 2; i++ {
 			time.Sleep(2 * time.Second)
 			err := net.SendHello(log, *port)

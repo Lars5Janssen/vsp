@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type UDP struct {
@@ -20,12 +19,7 @@ func SendHello(log *slog.Logger, port int) error {
 	msg := "HELLO?"
 	err := SendMessage(log, net.UDPAddr{}, port, msg)
 	if err != nil {
-		log.Error(fmt.Sprintf("First err: %s", err))
-		time.Sleep(1 * time.Second)
-		err = SendMessage(log, net.UDPAddr{}, port, msg)
-		if err != nil {
-			log.Error(fmt.Sprintf("Second err: %s", err))
-		}
+		log.Error(err.Error())
 	}
 	return err
 }

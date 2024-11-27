@@ -19,4 +19,4 @@ services:
 
 networks:
   vs-network:
-    driver: host
+    external: false
