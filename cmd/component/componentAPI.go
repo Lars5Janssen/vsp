@@ -1,6 +1,8 @@
-package cmd
+package component
 
-import n "github.com/Lars5Janssen/vsp/net"
+import (
+	n "github.com/Lars5Janssen/vsp/net"
+)
 
 func GetComponentEndpoints() []n.Endpoint {
 	return endpoints

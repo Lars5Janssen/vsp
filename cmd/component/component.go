@@ -1,12 +1,13 @@
-package cmd
+package component
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"log/slog"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 
 	n "github.com/Lars5Janssen/vsp/net"
 )

@@ -8,6 +8,8 @@ import (
 	"sync"
 
 	"github.com/Lars5Janssen/vsp/cmd"
+	"github.com/Lars5Janssen/vsp/cmd/component"
+	"github.com/Lars5Janssen/vsp/cmd/sol"
 	"github.com/Lars5Janssen/vsp/net"
 )
 
@@ -73,10 +75,10 @@ func main() {
 			log.Info("Start SolTCP")
 			workerCancel()
 			wg.Add(1)
-			go net.StartTCPServer(log, ip, *port, cmd.GetSolEndpoints(), restIn, restOut)
+			go net.StartTCPServer(log, ip, *port, sol.GetSolEndpoints(), restIn, restOut)
 			go func() {
 				defer wg.Done()
-				cmd.StartSol(workerCTX, log, inputWorker, udpMainSol, restIn, restOut)
+				sol.StartSol(workerCTX, log, inputWorker, udpMainSol, restIn, restOut)
 			}()
 		} else {
 			log.Info("Start ComponentTCP")
@@ -85,8 +87,8 @@ func main() {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				net.StartTCPServer(log, ip, *port, cmd.GetComponentEndpoints(), restIn, restOut)
-				cmd.StartComponent(workerCTX, log, inputWorker, restIn, restOut, response.Message)
+				net.StartTCPServer(log, ip, *port, component.GetComponentEndpoints(), restIn, restOut)
+				component.StartComponent(workerCTX, log, inputWorker, restIn, restOut, response.Message)
 			}()
 		}
 		wg.Wait()

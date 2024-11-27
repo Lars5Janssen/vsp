@@ -1,4 +1,4 @@
-package cmd
+package sol
 
 import (
 	"context"
@@ -402,6 +402,7 @@ func createAndSaveMessage(response n.RestIn) n.RestOut {
 
 	// Add the message to the list
 	msgList[msgId] = utils.MessageModel{
+		MSGID:   msgId,
 		STAR:    message.STAR,
 		ORIGIN:  message.ORIGIN,
 		SENDER:  message.SENDER,
@@ -421,6 +422,97 @@ func createAndSaveMessage(response n.RestIn) n.RestOut {
 deleteMessage Aufgabe 2.2
 */
 func deleteMessage(response n.RestIn) n.RestOut {
+	starUuid := response.Context.Query("star")
+	msgId := response.Context.Param("msgUUID?star=starUUID")
+
+	if starUuid != sol.StarUUID {
+		return n.RestOut{http.StatusUnauthorized, nil}
+	} else if msgId == "" {
+		return n.RestOut{http.StatusNotFound, nil}
+	} else if _, exists := msgList[msgId]; !exists {
+		return n.RestOut{http.StatusNotFound, nil}
+	}
+
+	msgList[msgId] = utils.MessageModel{
+		STATUS:  "deleted",
+		CHANGED: strconv.FormatInt(time.Now().Unix(), 10),
+	}
+
+	return n.RestOut{http.StatusOK, nil}
+}
+
+/*
+Aufgabe 2.3 getListOfAllMessages
+*/
+func getListOfAllMessages(response n.RestIn) n.RestOut {
+	starUuid := response.Context.Query("star")
+	scope := response.Context.Query("scope")
+	view := response.Context.Query("view")
+
+	if starUuid != sol.StarUUID {
+		return n.RestOut{http.StatusUnauthorized, nil}
+	}
+
+	if scope != "all" {
+		scope = "active"
+	}
+	if view != "header" {
+		view = "id"
+	}
+
+	var resultList []utils.MessageModel
+	for _, value := range msgList {
+		if scope == "active" && value.STATUS == "active" {
+			resultList = append(resultList, value)
+		} else if scope != "active" {
+			resultList = append(resultList, value)
+		}
+	}
+
+	var body any
+	if view == "id" {
+		var resultIdList []utils.MessageModelId
+		for _, value := range resultList {
+			resultIdList = append(resultIdList, utils.MessageModelId{
+				MSGID:  value.ORIGIN,
+				STATUS: value.STATUS,
+			})
+		}
+		body = utils.MessageListId{
+			STAR:         sol.StarUUID,
+			SCOPE:        scope,
+			VIEW:         view,
+			TOTALRESULTS: len(resultList),
+			MESSAGES:     resultIdList,
+		}
+	} else {
+		body = utils.MessageListHeader{
+			STAR:         sol.StarUUID,
+			SCOPE:        scope,
+			VIEW:         view,
+			TOTALRESULTS: len(resultList),
+			MESSAGES:     resultList,
+		}
+	}
+
+	return n.RestOut{http.StatusOK, body}
+}
+
+/*
+Aufgabe 2.3 getMessageByUUID
+*/
+func getMessageByUUID(response n.RestIn) n.RestOut {
+	starUuid := response.Context.Query("star")
+	msgId := response.Context.Param("msgUUID?star=starUUID")
+
+	if starUuid != sol.StarUUID {
+		return n.RestOut{http.StatusUnauthorized, nil}
+	} else if msgId == "" {
+		return n.RestOut{http.StatusNotFound, nil}
+	} else if _, exists := msgList[msgId]; !exists {
+		return n.RestOut{http.StatusNotFound, nil}
+	}
+
 	body := gin.H{"message": "test"}
 	return n.RestOut{http.StatusOK, body}
 }
