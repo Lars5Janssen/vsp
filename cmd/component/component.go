@@ -1,9 +1,10 @@
-package cmd
+package component
 
 import (
 	"context"
 	"encoding/json"
 	n "github.com/Lars5Janssen/vsp/net"
+
 	"github.com/Lars5Janssen/vsp/utils"
 	"github.com/gin-gonic/gin"
 	"log/slog"
