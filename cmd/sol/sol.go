@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"math/big"
+	"net"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -135,9 +136,13 @@ func StartSol(
 					return
 				}
 				log.Info("Sending response to HELLO?", slog.String("response", response.STAR))
+				if n.OwnAddrCheck(*log, udpInput.Addr.IP.String()) {
+					log.Debug("Would send message to own. Bad")
+				}
 				err = n.SendMessage(log, udpInput.Addr, sol.Port, string(marshal))
 				if err != nil {
-					return
+					log.Error("Error sending msg", "Error", err, "Addr", udpInput.Addr.IP)
+					// return
 				}
 			}
 		default:
@@ -162,8 +167,11 @@ func checkInteractionTimes() {
 
 func sendRequestsToActiveComponents(uuid int) error {
 	entry := solList[uuid]
-	url := "http://" + entry.IPAddress + ":" + strconv.Itoa(entry.Port) + "/vs/v1/system/" + strconv.Itoa(
-		uuid) + "?star=" + sol.StarUUID
+	url := "http://" + entry.IPAddress + ":" + strconv.Itoa(
+		entry.Port,
+	) + "/vs/v1/system/" + strconv.Itoa(
+		uuid,
+	) + "?star=" + sol.StarUUID
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		log.Error("Failed to create GET request", slog.String("error", err.Error()))
@@ -624,7 +632,11 @@ func sendDeleteRequests() {
 			continue
 		}
 
-		url := "http://" + entry.IPAddress + ":" + strconv.Itoa(entry.Port) + "/vs/v1/system/" + strconv.Itoa(uuid) +
+		url := "http://" + entry.IPAddress + ":" + strconv.Itoa(
+			entry.Port,
+		) + "/vs/v1/system/" + strconv.Itoa(
+			uuid,
+		) +
 			"?star=" + sol.StarUUID
 		req, err := http.NewRequest(http.MethodDelete, url, nil)
 		if err != nil {
@@ -643,7 +655,10 @@ func sendDeleteRequests() {
 				time.Sleep(20 * time.Second)
 				resp, err = client.Do(req)
 				if err != nil {
-					log.Error("Failed to send third DELETE request", slog.String("error", err.Error()))
+					log.Error(
+						"Failed to send third DELETE request",
+						slog.String("error", err.Error()),
+					)
 					continue
 				}
 				continue

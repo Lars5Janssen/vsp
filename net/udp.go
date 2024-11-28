@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type UDP struct {
@@ -20,31 +19,30 @@ func SendHello(log *slog.Logger, port int) error {
 	msg := "HELLO?"
 	err := SendMessage(log, net.UDPAddr{}, port, msg)
 	if err != nil {
-		log.Error(fmt.Sprintf("First err: %s", err))
-		time.Sleep(1 * time.Second)
-		err = SendMessage(log, net.UDPAddr{}, port, msg)
-		if err != nil {
-			log.Error(fmt.Sprintf("Second err: %s", err))
-		}
+		log.Error(err.Error())
 	}
 	return err
 }
 
 func SendMessage(log *slog.Logger, addr net.UDPAddr, port int, msg string) error {
 	log = log.With(slog.String("Component", "UDP"))
-	conn, err := net.DialUDP("udp", &addr, &net.UDPAddr{
-		IP:   addr.IP,
-		Port: port,
-	})
+	var conn *net.UDPConn
+	var err error
 	if addr.IP == nil {
 		conn, err = net.DialUDP("udp", nil, &net.UDPAddr{
 			IP:   net.IPv4bcast,
 			Port: port,
 		})
+	} else {
+		// TODO HERE LOOK HERE
+		// TODO HERE IS YOUR MISTAKE
+		conn, err = net.DialUDP("udp", &addr, &net.UDPAddr{
+			IP:   addr.IP, // YOU ARE SENDING TO YOURSELF
+			Port: port,
+		})
 	}
 
 	if err != nil {
-		log.Error(err.Error())
 		return err
 	}
 	defer func(conn *net.UDPConn) {
@@ -90,7 +88,7 @@ func ListenForBroadcastMessage(
 			log.Error(fmt.Sprintf("Error during Reading from buffer. Error: %s", err.Error()))
 		}
 
-		isOwn := ownAddrCheck(*log, addr)
+		isOwn := OwnAddrCheck(*log, addr.String())
 		if isOwn {
 			continue
 		}
@@ -123,7 +121,7 @@ func ListenForBroadcastMessage(
 	// udpServer.Close()
 }
 
-func ownAddrCheck(log slog.Logger, addr net.Addr) bool {
+func OwnAddrCheck(log slog.Logger, addr string) bool {
 	interfaceAddrs, errAddr := net.InterfaceAddrs()
 	if errAddr != nil {
 		log.Error("Error in getting own Ip")
@@ -132,30 +130,27 @@ func ownAddrCheck(log slog.Logger, addr net.Addr) bool {
 
 	ipAddr := convertNetAddrToIp(log, addr)
 
-	for _, a := range interfaceAddrs {
-		aConvert := convertNetAddrToIp(log, a)
-
-		if aConvert.Equal(ipAddr) {
-			log.Debug("Own IP found", "Addr", ipAddr.String(), "From Interface", aConvert.String())
-			return true
-		}
+	aConvert := convertNetAddrToIp(log, interfaceAddrs[1].String())
+	if aConvert == ipAddr {
+		// log.Debug("Own IP found", "Addr", ipAddr, "From Interface", aConvert)
+		return true
 	}
 	return false
 }
 
-func convertNetAddrToIp(log slog.Logger, addr net.Addr) net.IP {
-	addrString := addr.String()
-	indexOfPort := strings.LastIndex(addrString, ":")
-	if indexOfPort != -1 {
-		addrString = addrString[0:indexOfPort]
-
+func convertNetAddrToIp(log slog.Logger, addr string) string {
+	addrString := addr
+	i := strings.LastIndex(addrString, "/")
+	if i != -1 {
+		addrString = addrString[0:i]
 	}
-	indexOfMask := strings.LastIndex(addrString, "/")
-	if indexOfMask != -1 {
-		addrString = addrString[0:indexOfMask]
-
+	i2 := strings.LastIndex(addrString, ":")
+	if i2 != -1 {
+		addrString = addrString[0:i2]
 	}
-	conv := net.ParseIP(addrString)
-	// log.Debug("Parsed IP", "Imput", addr.String(), "Out", conv.String())
-	return conv
+	if i == -1 || i2 == -1 {
+		// log.Error("Conv", "i1", i, "i2", i2, "Pre", addr, "Post", addrString)
+	}
+	// log.Debug("Conv", "Pre", addr, "Post", addrString)
+	return addrString
 }

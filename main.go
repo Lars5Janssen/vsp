@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log/slog"
+	n "net"
 	"os"
+	"os/exec"
 	"sync"
 	"time"
 
@@ -37,6 +40,14 @@ func main() {
 	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: lvl,
 	}))
+
+	_, err := exec.Command("ip", "addr").Output()
+	if err != nil {
+		log.Error(err.Error())
+	}
+	// fmt.Println(string(cmdOut))
+	adLs, _ := n.InterfaceAddrs()
+	fmt.Println(adLs[1])
 
 	log.Info(
 		"Start of program",
@@ -84,6 +95,7 @@ func main() {
 		var response net.UDP
 		noMessage := true
 
+		// TODO Timeout verstellbar machen
 		for i := 0; i < 2; i++ {
 			time.Sleep(2 * time.Second)
 			err := net.SendHello(log, *port)
