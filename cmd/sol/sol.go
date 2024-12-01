@@ -293,7 +293,7 @@ func sendHeartBeatBack(response n.RestIn) n.RestOut {
 	if sol.StarUUID != response.Context.Query("star") {
 		return n.RestOut{http.StatusUnauthorized, nil}
 	}
-	uuid := response.Context.Param("comUUID?star=starUUID")
+	uuid := response.Context.Param("comUUID")
 	if uuid == "" {
 		return n.RestOut{http.StatusConflict, nil}
 	}
@@ -326,7 +326,7 @@ func disconnectComponentFromStar(response n.RestIn) n.RestOut {
 	var registerRequestModel utils.RegisterRequestModel
 
 	registerRequestModel.STAR = response.Context.Query("star")
-	stringValue := response.Context.Param("comUUID?star=starUUID")
+	stringValue := response.Context.Param("comUUID")
 	comUUid, err := strconv.Atoi(stringValue)
 	if err != nil {
 		out.StatusCode = http.StatusBadRequest
@@ -411,7 +411,7 @@ deleteMessage Aufgabe 2.2
 */
 func deleteMessage(response n.RestIn) n.RestOut {
 	starUuid := response.Context.Query("star")
-	msgId := response.Context.Param("msgUUID?star=starUUID")
+	msgId := response.Context.Param("msgUUID")
 
 	if starUuid != sol.StarUUID {
 		return n.RestOut{http.StatusUnauthorized, nil}
@@ -491,7 +491,7 @@ Aufgabe 2.3 getMessageByUUID
 */
 func getMessageByUUID(response n.RestIn) n.RestOut {
 	starUuid := response.Context.Query("star")
-	msgId := response.Context.Param("msgUUID?star=starUUID")
+	msgId := response.Context.Param("msgUUID")
 
 	if starUuid != sol.StarUUID {
 		return n.RestOut{http.StatusUnauthorized, nil}

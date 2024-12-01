@@ -74,7 +74,7 @@ func main() {
 	go cmd.StartUserInput(log, inputWorker, workerCancel, udpCancel)
 
 	/* Nur um organisch zwei Docker Container auf sol und component zuzuteilen.
-		Ist die Flag hierzu gesetzt tendiert der Container dazu Component zu werden. */
+	Ist die Flag hierzu gesetzt tendiert der Container dazu Component zu werden. */
 	if *sleep {
 		sleepTime := 5
 		log.Info(fmt.Sprintf("Sleep flag was set. Waiting %v Seconds", sleepTime))
@@ -107,7 +107,7 @@ func main() {
 			if len(udpMainSol) == cap(udpMainSol) {
 				noMessage = false
 			} else {
-				log.Debug("No UDP message recived, timing out")
+				log.Debug("No UDP message received, timing out")
 			}
 		}
 
