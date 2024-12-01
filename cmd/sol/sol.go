@@ -127,7 +127,7 @@ func StartSol(
 					SOLTCP:    sol.Port,
 				}
 
-				response.COMPONENT = 2000 // TODO only for test purposes
+				// response.COMPONENT = 2000 // TODO only for test purposes
 
 				marshal, err := json.Marshal(response)
 				if err != nil {
@@ -166,11 +166,7 @@ func checkInteractionTimes() {
 
 func sendRequestsToActiveComponents(uuid int) error {
 	entry := solList[uuid]
-	url := "http://" + entry.IPAddress + ":" + strconv.Itoa(
-		entry.Port,
-	) + "/vs/v1/system/" + strconv.Itoa(
-		uuid,
-	) + "?star=" + sol.StarUUID
+	url := "http://" + entry.IPAddress + ":" + strconv.Itoa(entry.Port) + "/vs/v1/system/" + strconv.Itoa(uuid) + "?star=" + sol.StarUUID
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		log.Error("Failed to create GET request", slog.String("error", err.Error()))
@@ -181,31 +177,33 @@ func sendRequestsToActiveComponents(uuid int) error {
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Error("Failed to send GET request", slog.String("error", err.Error()))
-		return err
 	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			log.Error("Failed to close response body", slog.String("error", err.Error()))
-		}
-	}(resp.Body)
+	if resp != nil {
+		defer func(Body io.ReadCloser) {
+			err := Body.Close()
+			if err != nil {
+				log.Error("Failed to close response body", slog.String("error", err.Error()))
+			}
+		}(resp.Body)
 
-	if resp.StatusCode != http.StatusOK {
-		log.Error("Received non-OK response", slog.Int("statusCode", resp.StatusCode))
-		entry.ActiveStatus = utils.Disconnected
-		entry.Status = utils.ComponentStatus(resp.StatusCode)
-	} else {
-		log.Info("Successfully sent GET request", slog.Int("uuid", uuid))
-		var heartBeatRequestModel utils.HeartBeatRequestModel
-		err := json.NewDecoder(resp.Body).Decode(&heartBeatRequestModel)
-		if err != nil {
-			log.Error("Failed to decode response body", slog.String("error", err.Error()))
+		if resp.StatusCode != http.StatusOK {
+			log.Error("Received non-OK response", slog.Int("statusCode", resp.StatusCode))
+			entry.ActiveStatus = utils.Disconnected
 			entry.Status = utils.ComponentStatus(resp.StatusCode)
 		} else {
-			entry.Status = utils.ComponentStatus(heartBeatRequestModel.STATUS)
-			log.Info("Successfully parsed response body", slog.Any("heartBeatRequestModel", heartBeatRequestModel))
+			log.Info("Successfully sent GET request", slog.Int("uuid", uuid))
+			var heartBeatRequestModel utils.HeartBeatRequestModel
+			err := json.NewDecoder(resp.Body).Decode(&heartBeatRequestModel)
+			if err != nil {
+				log.Error("Failed to decode response body", slog.String("error", err.Error()))
+				entry.Status = utils.ComponentStatus(resp.StatusCode)
+			} else {
+				entry.Status = utils.ComponentStatus(heartBeatRequestModel.STATUS)
+				log.Info("Successfully parsed response body", slog.Any("heartBeatRequestModel", heartBeatRequestModel))
+			}
 		}
 	}
+
 	entry.TimeInteraktion = time.Now()
 	solList[uuid] = entry
 	return err
@@ -237,7 +235,7 @@ func registerComponentBySol(response n.RestIn) n.RestOut {
 	} else if checkNoRoomLeft() != utils.OK {
 		return n.RestOut{StatusCode: http.StatusForbidden}
 	} else if checkNotFound(registerRequestModel) == utils.OK { // If the component is already in the list, return 409 Conflict
-		return n.RestOut{http.StatusConflict, nil}
+		return n.RestOut{StatusCode: http.StatusConflict}
 	}
 
 	// Add the component to the list
@@ -322,6 +320,7 @@ Wenn SOL nicht erreichbar ist, wird es nach 10 bzw. 20 Sekunden nochmal versucht
 zustande kommt, beendet sich die Komponente selbst.
 */
 func disconnectComponentFromStar(response n.RestIn) n.RestOut {
+	// TODO check if component is already deleted
 	var out n.RestOut
 	var registerRequestModel utils.RegisterRequestModel
 
@@ -388,6 +387,7 @@ func createAndSaveMessage(response n.RestIn) n.RestOut {
 	}
 	nonce++
 
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 	// Add the message to the list
 	msgList[msgId] = utils.MessageModel{
 		MSGID:   msgId,
@@ -395,8 +395,8 @@ func createAndSaveMessage(response n.RestIn) n.RestOut {
 		ORIGIN:  message.ORIGIN,
 		SENDER:  message.SENDER,
 		VERSION: "1",
-		CREATED: strconv.FormatInt(time.Now().Unix(), 10),
-		CHANGED: message.CREATED,
+		CREATED: timestamp,
+		CHANGED: timestamp,
 		SUBJECT: subject,
 		MESSAGE: message.MESSAGE,
 		STATUS:  "active",
@@ -501,8 +501,7 @@ func getMessageByUUID(response n.RestIn) n.RestOut {
 		return n.RestOut{http.StatusNotFound, nil}
 	}
 
-	body := gin.H{"message": "test"}
-	return n.RestOut{http.StatusOK, body}
+	return n.RestOut{http.StatusOK, msgList[msgId]}
 }
 
 /*
@@ -518,7 +517,7 @@ func initializeSol(log *slog.Logger, ctx context.Context) {
 	}
 	sol.SolUUID = number
 
-	sol.SolUUID = 1000 // TODO only for test purposes
+	// sol.SolUUID = 1000 // TODO only for test purposes
 
 	// IpAddress and Port from Sol
 	sol.IPAddress = ctx.Value("ip").(string)
@@ -533,7 +532,7 @@ func initializeSol(log *slog.Logger, ctx context.Context) {
 	}
 	sol.StarUUID = hashNumber
 
-	sol.StarUUID = "testStarUUID" // TODO only for test purposes
+	// sol.StarUUID = "testStarUUID" // TODO only for test purposes
 
 	return
 }
@@ -607,18 +606,21 @@ func checkNotFound(r utils.RegisterRequestModel) utils.ComponentStatus {
 }
 
 func checkConflict(r utils.RegisterRequestModel, addr string) utils.ComponentStatus {
-	// TODO check if the IP address and port are correct (no idea which port is gonna be used) cannot test
 	addrs := strings.Split(addr, ":")
 	port, err := strconv.Atoi(addrs[1])
-	// TODO remove port != 0
+	// TODO remove port == -1
 	if err != nil || port == -1 {
 		return utils.Conflict
 	}
-	// TODO because i cant test it rn, i will just return 200 OK
-	/*if r.COMIP != addrs[0] || solList[r.COMPONENT].IPAddress != addrs[0] || r.COMTCP != port || r.STATUS != 200 {
+
+	if checkNotFound(r) != utils.OK || solList[r.COMPONENT].IPAddress != addrs[0] {
+		return utils.Conflict
+	}
+
+	if r.COMIP != addrs[0] || r.COMTCP != port || r.STATUS != 200 {
 		// Return 409 Conflict
-		return Conflict
-	}*/
+		return utils.Conflict
+	}
 	// Return 200 OK
 	return utils.OK
 }

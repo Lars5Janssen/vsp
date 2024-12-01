@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	n "net"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -43,6 +44,8 @@ func main() {
 	// fmt.Println(string(cmdOut))
 	adLs, _ := n.InterfaceAddrs()
 	fmt.Println(adLs[1])
+	ip = adLs[1].String()
+	ip = strings.Split(ip, "/")[0]
 
 	log.Info(
 		"Start of program",
@@ -106,6 +109,7 @@ func main() {
 
 			if len(udpMainSol) == cap(udpMainSol) {
 				noMessage = false
+				response = <-udpMainSol
 			} else {
 				log.Debug("No UDP message received, timing out")
 			}

@@ -5,7 +5,7 @@ meta {
 }
 
 get {
-  url: {{HttpUrl}}{{Port}}/vs/v1/messages?star=testStarUUID&scope=all&view=id
+  url: {{HttpUrl}}{{Port}}/vs/v1/messages?star=testStarUUID&scope=all&view=header
   body: none
   auth: none
 }
@@ -13,5 +13,5 @@ get {
 params:query {
   star: testStarUUID
   scope: all
-  view: id
+  view: header
 }

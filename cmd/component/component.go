@@ -3,6 +3,7 @@ package component
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	n "github.com/Lars5Janssen/vsp/net"
 
@@ -115,6 +116,7 @@ func initializeComponent(log *slog.Logger, ctx context.Context, response string)
 }
 
 func parseResponseIntoComponent(response string, log *slog.Logger) {
+	fmt.Println(fmt.Sprintf("HIER ist die Antwort von SOL: %s", response)) // TODO remove
 	// Bereinigen des Strings, falls nötig (z. B. Ersetzen einzelner Anführungszeichen)
 	cleanedInput := strings.ReplaceAll(response, "\\", "")
 
