@@ -3,14 +3,16 @@ package cmd
 import (
 	"context"
 	"encoding/json"
-	n "github.com/Lars5Janssen/vsp/net"
-	"github.com/Lars5Janssen/vsp/utils"
-	"github.com/gin-gonic/gin"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
+
+	n "github.com/Lars5Janssen/vsp/net"
+	"github.com/Lars5Janssen/vsp/utils"
 )
 
 var component = Component{
@@ -64,7 +66,9 @@ func StartComponent(
 					if !sendHeartBeatToSol(log) {
 						time.Sleep(5 * time.Second)
 						if !sendHeartBeatToSol(log) {
-							log.Error("Failed to send heartbeat to SOL three time. Exiting Component")
+							log.Error(
+								"Failed to send heartbeat to SOL three time. Exiting Component",
+							)
 							return
 						}
 					}

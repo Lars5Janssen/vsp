@@ -2,11 +2,12 @@ services:
   sol:
     build: .
     entrypoint: app 
+    depends_on:
+      - component
     stdin_open: true
     tty: true
     networks:
       vs-network:
-        # ipv4_address: 172.18.0.1
 
   component:
     build: .
@@ -15,7 +16,6 @@ services:
     tty: true
     networks:
       vs-network:
-        # ipv4_address: 172.18.0.2
 
 networks:
   vs-network:
