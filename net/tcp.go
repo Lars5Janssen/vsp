@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/gin-gonic/gin"
+	sloggin "github.com/samber/slog-gin"
 )
 
 type RestIn struct {
@@ -90,6 +91,7 @@ func StartTCPServer(
 	log = log.With(slog.String("Component", "TCP"))
 
 	router := gin.Default()
+	router.Use(sloggin.New(log))
 	for _, v := range endpoints {
 		for _, vv := range v.Name {
 			for k := range v.AcceptedMethods {
@@ -121,6 +123,7 @@ func StartTCPServer(
 	}
 
 	addr := fmt.Sprintf("%s:%d", ip, port)
+
 	log.Info("Starting TCP Server", slog.String("Address", addr))
 	err := router.Run(addr)
 	if err != nil {

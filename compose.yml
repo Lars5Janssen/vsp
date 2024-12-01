@@ -2,6 +2,8 @@ services:
   sol:
     build: .
     entrypoint: app 
+    environment:
+      GIN_MODE: "release"
     depends_on:
       - component
     stdin_open: true
@@ -12,6 +14,8 @@ services:
   component:
     build: .
     entrypoint: app -sleep -killSol
+    environment:
+      GIN_MODE: "release"
     stdin_open: true
     tty: true
     networks:
