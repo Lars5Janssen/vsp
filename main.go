@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	n "net"
 	"os"
-	"os/exec"
 	"sync"
 	"time"
 
