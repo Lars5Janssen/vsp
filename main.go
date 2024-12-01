@@ -41,10 +41,6 @@ func main() {
 		Level: lvl,
 	}))
 
-	_, err := exec.Command("ip", "addr").Output()
-	if err != nil {
-		log.Error(err.Error())
-	}
 	// fmt.Println(string(cmdOut))
 	adLs, _ := n.InterfaceAddrs()
 	fmt.Println(adLs[1])
