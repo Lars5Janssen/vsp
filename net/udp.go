@@ -130,11 +130,17 @@ func OwnAddrCheck(log slog.Logger, addr string) bool {
 
 	ipAddr := convertNetAddrToIp(log, addr)
 
-	aConvert := convertNetAddrToIp(log, interfaceAddrs[1].String())
-	if aConvert == ipAddr {
-		// log.Debug("Own IP found", "Addr", ipAddr, "From Interface", aConvert)
-		return true
+	for _, x := range interfaceAddrs {
+		aConvert := convertNetAddrToIp(log, x.String())
+		if aConvert == ipAddr {
+			return true
+		}
+
 	}
+	// aConvert := convertNetAddrToIp(log, interfaceAddrs[1].String())
+	// if aConvert == ipAddr {
+	// 	return true
+	// }
 	return false
 }
 
