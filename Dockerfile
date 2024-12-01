@@ -13,3 +13,5 @@ COPY . .
 RUN go build -v -o /usr/local/bin/app ./main.go
 
 EXPOSE 8006
+
+CMD ["/usr/local/bin/app"]
