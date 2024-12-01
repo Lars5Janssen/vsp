@@ -34,7 +34,7 @@ func SendMessage(log *slog.Logger, addr net.UDPAddr, port int, msg string) error
 	log = log.With(slog.String("Component", "UDP"))
 	conn, err := net.DialUDP("udp", &addr, &net.UDPAddr{
 		IP:   addr.IP,
-		Port: port,
+		Port: addr.Port,
 	})
 	if addr.IP == nil {
 		conn, err = net.DialUDP("udp", nil, &net.UDPAddr{

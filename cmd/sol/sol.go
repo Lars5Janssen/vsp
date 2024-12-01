@@ -445,6 +445,7 @@ func deleteMessage(response n.RestIn) n.RestOut {
 Aufgabe 2.3 getListOfAllMessages
 */
 func getListOfAllMessages(response n.RestIn) n.RestOut {
+	// ?star=starUUID&scope=scope&view=view
 	starUuid := response.Context.Query("star")
 	scope := response.Context.Query("scope")
 	view := response.Context.Query("view")

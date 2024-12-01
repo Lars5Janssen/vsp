@@ -30,20 +30,20 @@ var solEndpoints = []n.Endpoint{
 		},
 	},
 	{
-		Name: []string{"/vs/v1/messages"},
+		Name: []string{"/vs/v1/message"},
 		AcceptedMethods: map[n.Method]n.Handler{
 			n.POST: createAndSaveMessage,
 		},
 	},
 	{
-		Name: []string{"/vs/v1/messages/:msgUUID?star=starUUID"},
+		Name: []string{"/vs/v1/message/:msgUUID?star=starUUID"},
 		AcceptedMethods: map[n.Method]n.Handler{
 			n.GET:    getMessageByUUID,
 			n.DELETE: deleteMessage,
 		},
 	},
 	{
-		Name: []string{"/vs/v1/messages?star=starUUID&scope=scope&view=view"},
+		Name: []string{"/vs/v1/messages"}, // ?star=starUUID&scope=scope&view=view
 		AcceptedMethods: map[n.Method]n.Handler{
 			n.GET: getListOfAllMessages,
 		},
