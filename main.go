@@ -81,8 +81,9 @@ func main() {
 	/* Nur um organisch zwei Docker Container auf sol und component zuzuteilen.
 		Ist die Flag hierzu gesetzt tendiert der Container dazu Component zu werden. */
 	if *sleep {
-		log.Info("Sleep flag was set. Waiting 8 Seconds")
-		time.Sleep(8 * time.Second)
+		sleepTime := 5
+		log.Info(fmt.Sprintf("Sleep flag was set. Waiting %v Seconds", sleepTime))
+		time.Sleep(time.Duration(sleepTime) * time.Second)
 	}
 
 	firstRun := true
@@ -96,17 +97,20 @@ func main() {
 		noMessage := true
 
 		// TODO Timeout verstellbar machen
-		for i := 0; i < 2; i++ {
-			time.Sleep(2 * time.Second)
+		for i := 0; i < 3; i++ {
+			if !noMessage {
+				continue
+			}
 			err := net.SendHello(log, *port)
 			if err != nil {
 				log.Error("Could not Send Hello")
 				return
 			}
 
+			time.Sleep(1 * time.Second)
+
 			if len(udpMainSol) == cap(udpMainSol) {
 				noMessage = false
-				break
 			} else {
 				log.Debug("No UDP message recived, timing out")
 			}
@@ -120,7 +124,7 @@ func main() {
 				defer wg.Done()
 				sol.StartSol(workerCTX, log, inputWorker, udpMainSol, restIn, restOut)
 			}()
-		} else if *stopIfSol {
+		} else if noMessage && *stopIfSol {
 			log.Info("Would be sol, but flag is set, stopping")
 		} else {
 			log.Info("Starting as Component")

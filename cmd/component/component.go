@@ -3,15 +3,23 @@ package component
 import (
 	"context"
 	"encoding/json"
+<<<<<<< HEAD:cmd/component/component.go
 	n "github.com/Lars5Janssen/vsp/net"
 
 	"github.com/Lars5Janssen/vsp/utils"
 	"github.com/gin-gonic/gin"
+=======
+>>>>>>> refs/remotes/origin/docker:cmd/component.go
 	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
+
+	n "github.com/Lars5Janssen/vsp/net"
+	"github.com/Lars5Janssen/vsp/utils"
 )
 
 var component = Component{
@@ -63,6 +71,7 @@ func StartComponent(
 		for runComponentThread {
 			select {
 			case <-ticker.C:
+<<<<<<< HEAD:cmd/component/component.go
 				if !sendHeartBeatToSol(logger) {
 					time.Sleep(10 * time.Second)
 					if !sendHeartBeatToSol(logger) {
@@ -70,6 +79,19 @@ func StartComponent(
 						if !sendHeartBeatToSol(logger) {
 							logger.Error("Failed to send heartbeat to SOL three time. Exiting Component")
 							setRunComponentThread(false)
+=======
+				log.Info("Sending Heartbeat to SOL")
+				if !sendHeartBeatToSol(log) {
+					log.Error("Failed to send heartbeat to SOL")
+					time.Sleep(5 * time.Second)
+					if !sendHeartBeatToSol(log) {
+						time.Sleep(5 * time.Second)
+						if !sendHeartBeatToSol(log) {
+							log.Error(
+								"Failed to send heartbeat to SOL three time. Exiting Component",
+							)
+							return
+>>>>>>> refs/remotes/origin/docker:cmd/component.go
 						}
 					}
 				}

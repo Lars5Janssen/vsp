@@ -36,7 +36,7 @@ func SendMessage(log *slog.Logger, addr net.UDPAddr, port int, msg string) error
 	} else {
 		// TODO HERE LOOK HERE
 		// TODO HERE IS YOUR MISTAKE
-		conn, err = net.DialUDP("udp", &addr, &net.UDPAddr{
+		conn, err = net.DialUDP("udp", nil, &net.UDPAddr{
 			IP:   addr.IP, // YOU ARE SENDING TO YOURSELF
 			Port: port,
 		})
@@ -60,7 +60,7 @@ func SendMessage(log *slog.Logger, addr net.UDPAddr, port int, msg string) error
 		return err
 	}
 
-	log.Info("Broadcast message sent")
+	log.Info("Message sent", slog.String("Message", msg))
 	return nil
 }
 
