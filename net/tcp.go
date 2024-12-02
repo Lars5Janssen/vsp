@@ -92,6 +92,8 @@ func StartTCPServer(
 
 	router := gin.Default()
 	router.Use(sloggin.New(log))
+
+	// Register Endpoints
 	for _, v := range endpoints {
 		for _, vv := range v.Name {
 			for k := range v.AcceptedMethods {
