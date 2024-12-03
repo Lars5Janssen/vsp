@@ -3,7 +3,7 @@ package component
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"net"
 
 	n "github.com/Lars5Janssen/vsp/net"
 
@@ -31,6 +31,8 @@ var urlSolPräfix = ""
 var runComponentThread = true
 
 var log slog.Logger
+
+var client = &http.Client{}
 
 func StartComponent(
 	ctx context.Context,
@@ -108,15 +110,35 @@ type Component struct {
 
 func initializeComponent(log *slog.Logger, ctx context.Context, response string) {
 	component.ComIP = ctx.Value("ip").(string)
+	component.ComPort = ctx.Value("port").(int)
 	component.Status = http.StatusOK // TODO ist das zu beginn wirklich so?
 
 	parseResponseIntoComponent(response, log)
 
 	urlSolPräfix = "http://" + component.SolIP + ":" + strconv.Itoa(component.SolPort)
+
+	// Create a custom DialContext function
+	dialer := &net.Dialer{
+		LocalAddr: &net.TCPAddr{Port: component.ComPort},
+		Timeout:   30 * time.Second,
+	}
+
+	customDialContext := func(ctx context.Context, network, addr string) (net.Conn, error) {
+		return dialer.DialContext(ctx, network, addr)
+	}
+
+	// Custom Transport with our DialContext
+	transport := &http.Transport{
+		DialContext: customDialContext,
+	}
+
+	// HTTP Client with custom Transport
+	client = &http.Client{
+		Transport: transport,
+	}
 }
 
 func parseResponseIntoComponent(response string, log *slog.Logger) {
-	fmt.Println(fmt.Sprintf("HIER ist die Antwort von SOL: %s", response)) // TODO remove
 	// Bereinigen des Strings, falls nötig (z. B. Ersetzen einzelner Anführungszeichen)
 	cleanedInput := strings.ReplaceAll(response, "\\", "")
 
@@ -169,7 +191,6 @@ func registerByStar() {
 		log.Error("Failed to create POST request", slog.String("error", err.Error()))
 	}
 
-	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil && resp != nil {
 		switch resp.StatusCode {
@@ -239,11 +260,10 @@ func sendHeartBeatToSol(log *slog.Logger) bool {
 
 	req, err := http.NewRequest("PATCH", url, strings.NewReader(string(jsonHeartBeatRequest)))
 	if err != nil {
-		log.Error("Failed to create POST request", slog.String("error", err.Error()))
+		log.Error("Failed to create PATCH request", slog.String("error", err.Error()))
 	}
 
-	client := &http.Client{}
-	// LOOP for Time meaby here?
+	// LOOP for Time maybe here?
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Error("Failed to send heartbeat to SOL:"+component.SolIP+":"+strconv.Itoa(component.SolPort), slog.String("error", err.Error()))
@@ -272,7 +292,6 @@ func disconnectFromStar() bool {
 		log.Error("Failed to create DELETE request", slog.String("error", err.Error()))
 	}
 
-	client := &http.Client{}
 	// LOOP for Time meaby here?
 	_, err = client.Do(req)
 	if err != nil {

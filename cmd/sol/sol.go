@@ -613,11 +613,18 @@ func checkConflict(r utils.RegisterRequestModel, addr string) utils.ComponentSta
 		return utils.Conflict
 	}
 
-	if checkNotFound(r) != utils.OK || solList[r.COMPONENT].IPAddress != addrs[0] {
+	if checkNotFound(r) == utils.OK && solList[r.COMPONENT].IPAddress != addrs[0] {
 		return utils.Conflict
 	}
 
 	if r.COMIP != addrs[0] || r.COMTCP != port || r.STATUS != 200 {
+		log.Debug("hier is das problem",
+			slog.String("r.COMIP", r.COMIP),
+			slog.String("addrs[0]", addrs[0]),
+			slog.Int("r.COMTCP", r.COMTCP),
+			slog.Int("port", port),
+			slog.Int("r.STATUS", r.STATUS),
+		)
 		// Return 409 Conflict
 		return utils.Conflict
 	}
