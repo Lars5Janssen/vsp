@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net"
 
-	n "github.com/Lars5Janssen/vsp/net"
+	n "github.com/Lars5Janssen/vsp/connection"
 
 	"log/slog"
 	"net/http"
@@ -13,9 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
-
 	"github.com/Lars5Janssen/vsp/utils"
+	"github.com/gin-gonic/gin"
 )
 
 var component = Component{
@@ -192,7 +191,7 @@ func registerByStar() {
 	}
 
 	resp, err := client.Do(req)
-	if err != nil && resp != nil {
+	if err == nil && resp != nil {
 		switch resp.StatusCode {
 		case http.StatusOK:
 			log.Info("Successfully registered by Sol")
@@ -204,6 +203,15 @@ func registerByStar() {
 			log.Error("The request was invalid")
 		}
 		return
+	} else {
+		if err != nil {
+			log.Error("Failed to send request to SOL. Exiting Component. Error: ", err.Error())
+			runComponentThread = false
+		} else {
+			log.Error("Failed to send request to SOL. Exiting Component")
+			runComponentThread = false
+		}
+
 	}
 }
 
@@ -231,7 +239,7 @@ func sendHeartBeatBackToSol(response n.RestIn) n.RestOut {
 		return n.RestOut{StatusCode: http.StatusUnauthorized}
 	}
 
-	comUUID := response.Context.Param("comUUID?star=starUUID")
+	comUUID := response.Context.Param("comUUID")
 
 	if comUUID != "" || comUUID != strconv.Itoa(component.ComUUID) {
 		return n.RestOut{StatusCode: http.StatusUnauthorized}

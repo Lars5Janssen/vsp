@@ -18,7 +18,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	n "github.com/Lars5Janssen/vsp/net"
+	n "github.com/Lars5Janssen/vsp/connection"
 	"github.com/Lars5Janssen/vsp/utils"
 )
 
@@ -265,16 +265,16 @@ func checkAvailabilityFromComponent(response n.RestIn) n.RestOut {
 	err := response.Context.ShouldBindJSON(&registerRequestModel)
 	if err != nil {
 		// Return 400 Bad Request if JSON is not valid
-		return n.RestOut{http.StatusBadRequest, nil}
+		return n.RestOut{StatusCode: http.StatusBadRequest}
 	}
 
 	// Check if info correct
 	if checkNotFound(registerRequestModel) != utils.OK {
 		return n.RestOut{http.StatusNotFound, nil}
 	} else if checkUnauthorized(registerRequestModel) != utils.OK {
-		return n.RestOut{http.StatusUnauthorized, nil}
+		return n.RestOut{StatusCode: http.StatusUnauthorized}
 	} else if checkConflict(registerRequestModel, response.IpAndPort) != utils.OK {
-		return n.RestOut{http.StatusConflict, nil}
+		return n.RestOut{StatusCode: http.StatusConflict}
 	}
 
 	// Update the time of interaction
@@ -284,7 +284,7 @@ func checkAvailabilityFromComponent(response n.RestIn) n.RestOut {
 		solList[registerRequestModel.COMPONENT] = entry
 	}
 
-	return n.RestOut{http.StatusOK, nil}
+	return n.RestOut{StatusCode: http.StatusOK}
 }
 
 func sendHeartBeatBack(response n.RestIn) n.RestOut {

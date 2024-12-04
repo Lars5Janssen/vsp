@@ -1,7 +1,12 @@
 services:
   sol:
+# Keine image angabe? why?
     build: .
-    entrypoint: app 
+    entrypoint: app
+    environment:
+      - SOL_ROOT_HOST=localhost
+    ports:
+      - "8006:8006"
     depends_on:
       - component
     stdin_open: true
