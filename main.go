@@ -25,8 +25,9 @@ func main() {
 	ip := "127.0.0.1" // nimmt localhost als IP-Adresse
 
 	// Parse command-line arguments
-	port := flag.Int("port", 8006, "Port to run the server on")                     // -port=8006
-	rerun := flag.Bool("rerun", false, "Enable this flag to automatically restart") // -rerun
+	portSolUdp := flag.Int("port", 8006, "Port to run the server on")                // -port=8006
+	portComp := flag.Int("portComp", 8007, "Port to run the server on as component") // -portComp=8007
+	rerun := flag.Bool("rerun", false, "Enable this flag to automatically restart")  // -rerun
 	sleep := flag.Bool("sleep", false, "Enable this flag to sleep once at start")
 	stopIfSol := flag.Bool("killSol", false, "Stop if the process would be sol")
 	maxActiveComponents := flag.Int("maxActiveComponents", 4,
@@ -53,7 +54,7 @@ func main() {
 		fmt.Println("First IPv4 Address:", ip)
 	}
 
-	log.Info(
+	/*	log.Info(
 		"Start of program",
 		slog.String("Component", "Main"),
 		slog.Int("Port", *port),
@@ -61,7 +62,7 @@ func main() {
 		slog.Bool("Sleep?", *sleep),
 		slog.Bool("killSol?", *stopIfSol),
 		slog.Int("MaxActiveComponents", *maxActiveComponents),
-	)
+	)*/
 
 	// Channels, Contexts & WaitGroup (Thread Stuff)
 	// Channels:
@@ -77,7 +78,7 @@ func main() {
 
 	/*	go connection.StartTCPServer(log, *port, cmd.GetComponentEndpoints(), restIn, restOut)*/
 	workerCTX = context.WithValue(workerCTX, "ip", ip)
-	workerCTX = context.WithValue(workerCTX, "port", *port)
+	workerCTX = context.WithValue(workerCTX, "port", *portSolUdp)
 	workerCTX = context.WithValue(workerCTX, "maxActiveComponents", *maxActiveComponents)
 
 	go cmd.StartUserInput(log, inputWorker, workerCancel, udpCancel)
@@ -95,7 +96,7 @@ func main() {
 	for *rerun || firstRun {
 		firstRun = false
 
-		go connection.ListenForBroadcastMessage(log, *port, udpMainSol) // udpCTX?
+		go connection.ListenForBroadcastMessage(log, *portSolUdp, udpMainSol) // udpCTX?
 
 		var response connection.UDP
 		noMessage := true
@@ -105,7 +106,7 @@ func main() {
 			if !noMessage {
 				continue
 			}
-			err := connection.SendHello(log, *port)
+			err := connection.SendHello(log, *portSolUdp)
 			if err != nil {
 				log.Error("Could not Send Hello")
 				return
@@ -124,7 +125,7 @@ func main() {
 		if noMessage && !*stopIfSol {
 			log.Info("Starting as Sol")
 			wg.Add(1)
-			go connection.StartTCPServer(log, ip, *port, sol.GetSolEndpoints(), restIn, restOut)
+			go connection.StartTCPServer(log, ip, *portSolUdp, sol.GetSolEndpoints(), restIn, restOut)
 			go func() {
 				defer wg.Done()
 				sol.StartSol(workerCTX, log, inputWorker, udpMainSol, restIn, restOut)
@@ -135,7 +136,8 @@ func main() {
 			log.Info("Starting as Component")
 			udpCancel()
 			wg.Add(1)
-			go connection.StartTCPServer(log, ip, *port, component.GetComponentEndpoints(), restIn, restOut)
+			workerCTX = context.WithValue(workerCTX, "port", *portComp)
+			go connection.StartTCPServer(log, ip, *portComp, component.GetComponentEndpoints(), restIn, restOut)
 			go func() {
 				defer wg.Done()
 				component.StartComponent(workerCTX, log, inputWorker, restIn, restOut, response.Message)
