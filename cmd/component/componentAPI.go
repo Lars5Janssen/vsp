@@ -1,7 +1,7 @@
 package component
 
 import (
-	n "github.com/Lars5Janssen/vsp/net"
+	n "github.com/Lars5Janssen/vsp/connection"
 )
 
 func GetComponentEndpoints() []n.Endpoint {

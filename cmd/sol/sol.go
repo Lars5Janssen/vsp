@@ -18,7 +18,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	n "github.com/Lars5Janssen/vsp/net"
+	n "github.com/Lars5Janssen/vsp/connection"
 	"github.com/Lars5Janssen/vsp/utils"
 )
 

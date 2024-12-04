@@ -1,7 +1,7 @@
 package sol
 
 import (
-	n "github.com/Lars5Janssen/vsp/net"
+	n "github.com/Lars5Janssen/vsp/connection"
 )
 
 func GetSolEndpoints() []n.Endpoint {

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net"
 
-	n "github.com/Lars5Janssen/vsp/net"
+	n "github.com/Lars5Janssen/vsp/connection"
 
 	"log/slog"
 	"net/http"
@@ -192,7 +192,7 @@ func registerByStar() {
 	}
 
 	resp, err := client.Do(req)
-	if err != nil && resp != nil {
+	if err == nil && resp != nil {
 		switch resp.StatusCode {
 		case http.StatusOK:
 			log.Info("Successfully registered by Sol")
@@ -204,6 +204,10 @@ func registerByStar() {
 			log.Error("The request was invalid")
 		}
 		return
+	} else {
+		if err != nil {
+			log.Error("Failed to send request to SOL: ", slog.String("error", err.Error()))
+		}
 	}
 }
 
