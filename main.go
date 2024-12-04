@@ -13,7 +13,7 @@ import (
 	"github.com/Lars5Janssen/vsp/cmd"
 	"github.com/Lars5Janssen/vsp/cmd/component"
 	"github.com/Lars5Janssen/vsp/cmd/sol"
-	"github.com/Lars5Janssen/vsp/connection"
+	con "github.com/Lars5Janssen/vsp/connection"
 )
 
 // TODO better logging currently all is manually set = bad (component string in every file but main.go)
@@ -59,10 +59,10 @@ func main() {
 	)*/
 
 	// Channels, Contexts & WaitGroup (Thread Stuff)
-	inputWorker := make(chan string)           // Input -> Worker
-	udpMainSol := make(chan connection.UDP, 1) // UDP -> SOL/Main
-	restIn := make(chan connection.RestIn)
-	restOut := make(chan connection.RestOut)
+	inputWorker := make(chan string)    // Input -> Worker
+	udpMainSol := make(chan con.UDP, 1) // UDP -> SOL/Main
+	restIn := make(chan con.RestIn)
+	restOut := make(chan con.RestOut)
 	var wg sync.WaitGroup
 
 	// Contexts:
@@ -88,9 +88,9 @@ func main() {
 	for *rerun || firstRun {
 		firstRun = false
 
-		go connection.ListenForBroadcastMessage(log, *port, udpMainSol) // udpCTX?
+		go con.ListenForBroadcastMessage(log, *port, udpMainSol) // udpCTX?
 
-		var response connection.UDP
+		var response con.UDP
 		noMessage := true
 
 		// TODO Timeout verstellbar machen
@@ -98,7 +98,7 @@ func main() {
 			if !noMessage {
 				continue
 			}
-			err := connection.SendHello(log, *port)
+			err := con.SendHello(log, *port)
 			if err != nil {
 				log.Error("Could not Send Hello")
 				return
@@ -117,7 +117,7 @@ func main() {
 		if noMessage && !*stopIfSol {
 			log.Info("Starting as Sol")
 			wg.Add(1)
-			go connection.StartTCPServer(log, ip, *port, sol.GetSolEndpoints(), restIn, restOut)
+			go con.StartTCPServer(log, ip, *port, sol.GetSolEndpoints(), restIn, restOut)
 			go func() {
 				defer wg.Done()
 				sol.StartSol(workerCTX, log, inputWorker, udpMainSol, restIn, restOut)
@@ -128,7 +128,7 @@ func main() {
 			log.Info("Starting as Component")
 			udpCancel()
 			wg.Add(1)
-			go connection.StartTCPServer(log, ip, *port, component.GetComponentEndpoints(), restIn, restOut)
+			go con.StartTCPServer(log, ip, *port, component.GetComponentEndpoints(), restIn, restOut)
 			go func() {
 				defer wg.Done()
 				component.StartComponent(workerCTX, log, inputWorker, restIn, restOut, response.Message)

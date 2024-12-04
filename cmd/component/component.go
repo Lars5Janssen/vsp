@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net"
 
-	n "github.com/Lars5Janssen/vsp/connection"
+	con "github.com/Lars5Janssen/vsp/connection"
 
 	"log/slog"
 	"net/http"
@@ -38,8 +38,8 @@ func StartComponent(
 	ctx context.Context,
 	logger *slog.Logger,
 	commands chan string,
-	restIn chan n.RestIn,
-	restOut chan n.RestOut,
+	restIn chan con.RestIn,
+	restOut chan con.RestOut,
 	response string,
 ) {
 	logger = logger.With(slog.String("Component", "Component"))
@@ -49,7 +49,7 @@ func StartComponent(
 	initializeComponent(logger, ctx, response)
 
 	// TODO Hier scheint eine Loop logic sein zu müssen damit die Ports available bleiben
-	go n.AttendHTTP(logger, restIn, restOut, endpoints) // Will Handle endpoints in this thread
+	go con.AttendHTTP(logger, restIn, restOut, endpoints) // Will Handle endpoints in this thread
 
 	registerByStar()
 
@@ -222,7 +222,7 @@ erhält, baut SOL zum <STARPORT>/tcp der Komponente eine UNICAST-Verbindung auf 
 Komponente noch aktiv und funktionsfähig ist. Diese Kontrollmöglichkeit muss SOL auch für sich selbst unterstützen!
 Auch hier kommt eine REST-API zum Einsatz.
 */
-func sendHeartBeatBackToSol(response n.RestIn) n.RestOut {
+func sendHeartBeatBackToSol(response con.RestIn) con.RestOut {
 	log.Info("Received Heartbeat from SOL")
 	model := utils.HeartBeatRequestModel{
 		STAR:      component.StarUUID,
@@ -234,15 +234,15 @@ func sendHeartBeatBackToSol(response n.RestIn) n.RestOut {
 	}
 
 	if response.Context.Query("star") != component.StarUUID {
-		return n.RestOut{StatusCode: http.StatusUnauthorized}
+		return con.RestOut{StatusCode: http.StatusUnauthorized}
 	}
 
 	comUUID := response.Context.Param("comUUID?star=starUUID")
 
 	if comUUID != "" || comUUID != strconv.Itoa(component.ComUUID) {
-		return n.RestOut{StatusCode: http.StatusUnauthorized}
+		return con.RestOut{StatusCode: http.StatusUnauthorized}
 	}
-	return n.RestOut{StatusCode: http.StatusOK, Body: model}
+	return con.RestOut{StatusCode: http.StatusOK, Body: model}
 }
 
 func sendHeartBeatToSol(log *slog.Logger) bool {
@@ -348,45 +348,45 @@ func disconnectAfterExit() {
 /*
 createOrForwardMessage nutzt das MessageRequestModel 2.1
 */
-func createOrForwardMessage(response n.RestIn) n.RestOut {
+func createOrForwardMessage(response con.RestIn) con.RestOut {
 	body := gin.H{"message": "test"}
-	return n.RestOut{StatusCode: http.StatusOK, Body: body}
+	return con.RestOut{StatusCode: http.StatusOK, Body: body}
 }
 
 /*
 Aufgabe 2.3 getListOfAllMessages
 */
-func getListOfAllMessages(response n.RestIn) n.RestOut {
+func getListOfAllMessages(response con.RestIn) con.RestOut {
 	body := gin.H{"message": "test"}
-	return n.RestOut{StatusCode: http.StatusOK, Body: body}
+	return con.RestOut{StatusCode: http.StatusOK, Body: body}
 }
 
 /*
 Aufgabe 2.3 getMessageByUUID
 */
-func getMessageByUUID(response n.RestIn) n.RestOut {
+func getMessageByUUID(response con.RestIn) con.RestOut {
 	body := gin.H{"message": "test"}
-	return n.RestOut{StatusCode: http.StatusOK, Body: body}
+	return con.RestOut{StatusCode: http.StatusOK, Body: body}
 }
 
 /*
 2.2: Weiterleiten von DELETE Requests von Komponente an Sol
 */
-func forwardDeletingMessages(response n.RestIn) n.RestOut {
+func forwardDeletingMessages(response con.RestIn) con.RestOut {
 	body := gin.H{"message": "test"}
-	return n.RestOut{StatusCode: http.StatusOK, Body: body}
+	return con.RestOut{StatusCode: http.StatusOK, Body: body}
 }
 
 /**
 	Helper Methods
  **/
 
-func notAvailable(_ n.RestIn) n.RestOut {
-	return n.RestOut{StatusCode: http.StatusNotFound}
+func notAvailable(_ con.RestIn) con.RestOut {
+	return con.RestOut{StatusCode: http.StatusNotFound}
 }
 
-func iAmNotSol(_ n.RestIn) n.RestOut {
-	return n.RestOut{StatusCode: http.StatusUnauthorized}
+func iAmNotSol(_ con.RestIn) con.RestOut {
+	return con.RestOut{StatusCode: http.StatusUnauthorized}
 }
 
 func setRunComponentThread(value bool) {
