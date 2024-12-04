@@ -616,7 +616,7 @@ func checkNotFound(r utils.RegisterRequestModel) utils.ComponentStatus {
 
 func checkConflict(r utils.RegisterRequestModel, addr string) utils.ComponentStatus {
 	addrs := strings.Split(addr, ":")
-	port, err := strconv.Atoi(addrs[1])
+	port, err := strconv.Atoi(addrs[1]) // Port von dem Component schickt nicht auf dem er hört
 	// TODO remove port == -1
 	if err != nil || port == -1 {
 		return utils.Conflict
@@ -626,7 +626,9 @@ func checkConflict(r utils.RegisterRequestModel, addr string) utils.ComponentSta
 		return utils.Conflict
 	}
 
-	if r.COMIP != addrs[0] || r.COMTCP != port || r.STATUS != 200 {
+	// r.COMTCP != port führt dazu das der Port von dem aus geschickt mit dem eingangsport der component verglichen wird.
+	// Das darf jedoch garnicht der gleiche Port sein.
+	if r.COMIP != addrs[0] || r.STATUS != 200 {
 		log.Debug("hier is das problem",
 			slog.String("r.COMIP", r.COMIP),
 			slog.String("addrs[0]", addrs[0]),

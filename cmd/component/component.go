@@ -119,8 +119,10 @@ func initializeComponent(log *slog.Logger, ctx context.Context, response string)
 
 	// Create a custom DialContext function
 	dialer := &net.Dialer{
-		LocalAddr: &net.TCPAddr{Port: component.ComPort},
-		Timeout:   30 * time.Second,
+		LocalAddr: &net.TCPAddr{IP: net.ParseIP(component.ComIP)},
+		// Port: component.ComPort da hier schon der eingangsport ist führt das zu:
+		// dial tcp :8006->172.17.0.2:8006: bind: address already in use nur beim heartbeat
+		Timeout: 30 * time.Second,
 	}
 
 	customDialContext := func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -274,7 +276,7 @@ func sendHeartBeatToSol(log *slog.Logger) bool {
 		return false
 	}
 	if resp.StatusCode != http.StatusOK {
-		log.Error("Failed to send heartbeat to SOL:"+component.SolIP+": "+strconv.Itoa(component.SolPort)+", Wrong Status: ", slog.Int("status", resp.StatusCode))
+		log.Error("Failed to send heartbeat to SOL:"+component.SolIP+":"+strconv.Itoa(component.SolPort)+", Wrong Status: ", slog.Int("status", resp.StatusCode))
 		return false
 	}
 
