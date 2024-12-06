@@ -27,7 +27,7 @@ var component = Component{
 	SolPort:  0,
 }
 
-var urlSolPräfix = ""
+var urlSolPraefix = ""
 var runComponentThread = true
 
 var log slog.Logger
@@ -115,7 +115,7 @@ func initializeComponent(log *slog.Logger, ctx context.Context, response string)
 
 	parseResponseIntoComponent(response, log)
 
-	urlSolPräfix = "http://" + component.SolIP + ":" + strconv.Itoa(component.SolPort)
+	urlSolPraefix = "http://" + component.SolIP + ":" + strconv.Itoa(component.SolPort)
 
 	// Create a custom DialContext function
 	dialer := &net.Dialer{
@@ -166,7 +166,7 @@ func parseResponseIntoComponent(response string, log *slog.Logger) {
 }
 
 func registerByStar() {
-	url := urlSolPräfix + "/vs/v1/system"
+	url := urlSolPraefix + "/vs/v1/system"
 
 	var reqisterRequestModel = utils.RequestModel{
 		STAR:      component.StarUUID,
@@ -242,9 +242,9 @@ func sendHeartBeatBackToSol(response con.RestIn) con.RestOut {
 
 func sendHeartBeatToSol(log *slog.Logger) bool {
 	log.Info("Sending Heartbeat to SOL")
-	url := urlSolPräfix + "/vs/v1/system/" + strconv.Itoa(component.ComUUID)
+	url := urlSolPraefix + "/vs/v1/system/" + strconv.Itoa(component.ComUUID)
 
-	var RequestModel = utils.RequestModel{
+	RequestModel := utils.RequestModel{
 		STAR:      component.StarUUID,
 		SOL:       component.SolUUID,
 		COMPONENT: component.ComUUID,
@@ -264,7 +264,6 @@ func sendHeartBeatToSol(log *slog.Logger) bool {
 		log.Error("Failed to create PATCH request", slog.String("error", err.Error()))
 	}
 
-	// LOOP for Time maybe here?
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Error("Failed to send heartbeat to SOL:"+component.SolIP+":"+strconv.Itoa(component.SolPort), slog.String("error", err.Error()))
@@ -286,7 +285,7 @@ aktiven Komponenten im Stern einzeln kontaktiert:
 */
 func disconnectFromStar() bool {
 	log.Info("Disconnect From Star")
-	url := urlSolPräfix + "/vs/v1/system/" + strconv.Itoa(component.ComUUID) + "?star=" + component.StarUUID
+	url := urlSolPraefix + "/vs/v1/system/" + strconv.Itoa(component.ComUUID) + "?star=" + component.StarUUID
 
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
@@ -307,7 +306,6 @@ func disconnectFromStar() bool {
 	return false
 }
 
-// TODO Ab hier nicht implementiert
 /*
 disconnectAfterExit 1.2 Pflege des Sterns – Abmelden von SOL
 
@@ -318,6 +316,7 @@ kommt, beendet sich die Komponente selbst.
 */
 func disconnectAfterExit() {
 	ticker := time.NewTicker(10 * time.Second)
+
 	go func() {
 		for runComponentThread {
 			select {
@@ -336,16 +335,48 @@ func disconnectAfterExit() {
 			}
 		}
 	}()
+}
 
-	// TODO LOOP
+// TODO Diese Methode soll nur eine Message auf Basis der Eingaben des Users erstellen?
+// TODO not implemented yet
+func createMessage(userInput string) {
+	messages := utils.MessageRequestModel{
+		STAR:    "",
+		ORIGIN:  "",
+		SENDER:  "",
+		MSGID:   "",
+		VERSION: "",
+		CREATED: "",
+		CHANGED: "",
+		SUBJECT: "",
+		MESSAGE: "",
+	}
+
+	sendMessageToSol(messages)
 }
 
 /*
-createOrForwardMessage nutzt das MessageRequestModel 2.1
+forwardMessage nutzt das MessageRequestModel 2.1
+TODO Soll es möglich sein eine Liste von Messages zu übergeben oder nur eine?
 */
-func createOrForwardMessage(response con.RestIn) con.RestOut {
-	body := gin.H{"message": "test"}
-	return con.RestOut{StatusCode: http.StatusOK, Body: body}
+func forwardMessage(response con.RestIn) con.RestOut {
+	var message utils.MessageRequestModel
+	err := response.Context.BindJSON(&message)
+	if err != nil {
+		return con.RestOut{StatusCode: http.StatusBadRequest}
+	}
+
+	err = message.Validate() // validierung ueber die json tags siehe models.go
+	if err != nil {
+		return con.RestOut{StatusCode: http.StatusPreconditionFailed}
+	}
+
+	if message.STAR != component.StarUUID {
+		return con.RestOut{StatusCode: http.StatusUnauthorized}
+		// TODO Soll schon auf den korrekten Star schon bei der Komponente abgefangen werden?
+	}
+
+	return sendMessageToSol(message)
 }
 
 /*
@@ -368,8 +399,73 @@ func getMessageByUUID(response con.RestIn) con.RestOut {
 2.2: Weiterleiten von DELETE Requests von Komponente an Sol
 */
 func forwardDeletingMessages(response con.RestIn) con.RestOut {
-	body := gin.H{"message": "test"}
-	return con.RestOut{StatusCode: http.StatusOK, Body: body}
+	log.Info("Forwarding DELETE Request to SOL")
+
+	if response.Context.Query("star") != component.StarUUID {
+		// TODO Soll schon auf den korrekten Star schon bei der Komponente abgefangen werden?
+		return con.RestOut{StatusCode: http.StatusUnauthorized}
+	}
+
+	url := urlSolPraefix + "/vs/v1/messages/" +
+		response.Context.Param("msgUUID") +
+		"?star=" + response.Context.Query("star")
+
+	req, err := http.NewRequest("DELETE", url, nil)
+	if err != nil {
+		log.Error("Failed to create DELETE request", slog.String("error", err.Error()))
+		return con.RestOut{StatusCode: http.StatusInternalServerError}
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Error("Failed to send DELETE request to SOL: ", slog.String("error", err.Error()))
+		return con.RestOut{StatusCode: http.StatusInternalServerError}
+	}
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return con.RestOut{StatusCode: http.StatusUnauthorized}
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return con.RestOut{StatusCode: http.StatusNotFound}
+	}
+
+	return con.RestOut{StatusCode: http.StatusOK}
+}
+
+func sendMessageToSol(message utils.MessageRequestModel) con.RestOut {
+	log.Info("Sending Message to SOL")
+	url := urlSolPraefix + "/vs/v1/messages"
+
+	messageToSend, err := json.Marshal(message)
+	if err != nil {
+		log.Error("Error while marshalling data", slog.String("error", err.Error()))
+		return con.RestOut{StatusCode: http.StatusPreconditionFailed, Body: gin.H{"error": "Error while marshalling data"}}
+	}
+
+	req, err := http.NewRequest("POST", url, strings.NewReader(string(messageToSend)))
+	if err != nil {
+		log.Error("Failed to create POST request", slog.String("error", err.Error()))
+		return con.RestOut{StatusCode: http.StatusConflict, Body: gin.H{"error": err.Error()}}
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Error("Failed to send Message to SOL with id: "+component.StarUUID+".\n Meaby the star is not reachable anymore.", slog.String("error", err.Error()))
+		return con.RestOut{StatusCode: http.StatusInternalServerError, Body: gin.H{"error": err.Error()}}
+	}
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return con.RestOut{StatusCode: http.StatusUnauthorized}
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return con.RestOut{StatusCode: http.StatusNotFound}
+	}
+	if resp.StatusCode == http.StatusPreconditionFailed {
+		return con.RestOut{StatusCode: http.StatusPreconditionFailed}
+	}
+
+	log.Info("Message was successfully sent to SOL")
+	return con.RestOut{StatusCode: http.StatusOK}
 }
 
 /**

@@ -39,7 +39,7 @@ var endpoints = []con.Endpoint{
 		Name: []string{"/vs/v1/messages"},
 		AcceptedMethods: map[con.Method]con.Handler{
 			con.GET:  notAvailable,
-			con.POST: createOrForwardMessage, // komponenten können messages erstellen und auch an sol weiterleiten
+			con.POST: forwardMessage, // komponenten können messages erstellen und auch an sol weiterleiten
 		},
 	},
 	{
