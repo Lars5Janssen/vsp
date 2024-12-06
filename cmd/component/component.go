@@ -145,35 +145,30 @@ func parseResponseIntoComponent(response string, log *slog.Logger) {
 	cleanedInput := strings.ReplaceAll(response, "\\", "")
 
 	// JSON-Daten unmarshallen
-	var parsedData map[string]interface{}
+	var parsedData utils.ResponseModel
 	err := json.Unmarshal([]byte(cleanedInput), &parsedData)
-
 	if err != nil {
 		log.Error("Error while parsing response")
 		return
 	}
+	err = parsedData.Validate()
+	if err != nil {
+		log.Error("Error while validating response")
+		return
+	}
 
 	// Daten in struct schreiben
-	for key, value := range parsedData {
-		switch strings.ToLower(key) {
-		case "star":
-			component.StarUUID = value.(string)
-		case "sol":
-			component.SolUUID = int(value.(float64)) // Com UUID des stars?
-		case "solip":
-			component.SolIP = value.(string)
-		case "soltcp":
-			component.SolPort = int(value.(float64))
-		case "component":
-			component.ComUUID = int(value.(float64))
-		}
-	}
+	component.ComUUID = parsedData.COMPONENT
+	component.SolPort = parsedData.SOLTCP
+	component.SolUUID = parsedData.SOL
+	component.StarUUID = parsedData.STAR
+	component.SolIP = parsedData.SOLIP
 }
 
 func registerByStar() {
 	url := urlSolPräfix + "/vs/v1/system"
 
-	var reqisterRequestModel = utils.RegisterRequestModel{
+	var reqisterRequestModel = utils.RequestModel{
 		STAR:      component.StarUUID,
 		SOL:       component.SolUUID,
 		COMPONENT: component.ComUUID,
@@ -224,13 +219,13 @@ Auch hier kommt eine REST-API zum Einsatz.
 */
 func sendHeartBeatBackToSol(response con.RestIn) con.RestOut {
 	log.Info("Received Heartbeat from SOL")
-	model := utils.HeartBeatRequestModel{
+	model := utils.RequestModel{
 		STAR:      component.StarUUID,
 		SOL:       component.SolUUID,
 		COMPONENT: component.ComUUID,
 		COMIP:     component.ComIP,
 		COMTCP:    component.ComPort,
-		STATUS:    component.Status,
+		STATUS:    strconv.Itoa(component.Status),
 	}
 
 	if response.Context.Query("star") != component.StarUUID {
@@ -249,16 +244,16 @@ func sendHeartBeatToSol(log *slog.Logger) bool {
 	log.Info("Sending Heartbeat to SOL")
 	url := urlSolPräfix + "/vs/v1/system/" + strconv.Itoa(component.ComUUID)
 
-	var heartBeatRequestModel = utils.HeartBeatRequestModel{
+	var RequestModel = utils.RequestModel{
 		STAR:      component.StarUUID,
 		SOL:       component.SolUUID,
 		COMPONENT: component.ComUUID,
 		COMIP:     component.ComIP,
 		COMTCP:    component.ComPort,
-		STATUS:    component.Status,
+		STATUS:    strconv.Itoa(component.Status),
 	}
 
-	jsonHeartBeatRequest, err := json.Marshal(heartBeatRequestModel)
+	jsonHeartBeatRequest, err := json.Marshal(RequestModel)
 	if err != nil {
 		log.Error("Error while marshalling data", slog.String("error", err.Error()))
 		return false

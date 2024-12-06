@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
-	"net"
+	n "net"
 	"os"
 	"sync"
 	"time"
@@ -22,7 +22,7 @@ import (
 // TODO Maybe make the TCP channel a map (Endpoint -> gin.Context)
 // TODO Better words to differentiate between components in the program and component as a thing in the networkstructure
 func main() {
-	/*ip := "127.0.0.1"*/ // nimmt localhost als IP-Adresse
+	ip := "127.0.0.1" // nimmt localhost als IP-Adresse
 
 	// Parse command-line arguments
 	port := flag.Int("port", 8006, "Port to run the server on")                     // -port=8006
@@ -59,6 +59,7 @@ func main() {
 	)*/
 
 	// Channels, Contexts & WaitGroup (Thread Stuff)
+	// Channels:
 	inputWorker := make(chan string)    // Input -> Worker
 	udpMainSol := make(chan con.UDP, 1) // UDP -> SOL/Main
 	restIn := make(chan con.RestIn)
@@ -69,6 +70,7 @@ func main() {
 	_, udpCancel := context.WithCancel(context.Background())
 	workerCTX, workerCancel := context.WithCancel(context.Background())
 
+	/*	go net.StartTCPServer(log, *port, cmd.GetComponentEndpoints(), restIn, restOut)*/
 	workerCTX = context.WithValue(workerCTX, "ip", ip)
 	workerCTX = context.WithValue(workerCTX, "port", *port)
 	workerCTX = context.WithValue(workerCTX, "maxActiveComponents", *maxActiveComponents)
@@ -142,14 +144,14 @@ func main() {
 }
 
 func getFirstIPv4Addr() (string, error) {
-	addrs, err := net.InterfaceAddrs()
+	addrs, err := n.InterfaceAddrs()
 	if err != nil {
 		return "", err
 	}
 
 	for _, addr := range addrs {
-		if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() {
-			if ipNet.IP.To4() != nil {
+		if ipNet, ok := addr.(*n.IPNet); ok && !ipNet.IP.IsLoopback() {
+			if ipNet.IP.To4() != nil { // && ipNet.Mask.String() == "ffffff00"
 				return ipNet.IP.String(), nil
 			}
 		}

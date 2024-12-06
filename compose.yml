@@ -1,6 +1,6 @@
 services:
   sol:
-    build: .
+    build: ..
     entrypoint: app 
     depends_on:
       - component
@@ -10,7 +10,7 @@ services:
       vs-network:
 
   component:
-    build: .
+    build: ..
     entrypoint: app -sleep -killSol
     stdin_open: true
     tty: true

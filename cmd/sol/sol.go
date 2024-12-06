@@ -36,7 +36,7 @@ type ComponentEntry struct {
 	Port            int
 	TimeIntegration time.Time
 	TimeInteraktion time.Time
-	Status          utils.ComponentStatus
+	Status          string
 	ActiveStatus    utils.ActiveStatus
 }
 
@@ -74,7 +74,7 @@ func StartSol(
 		Port:            sol.Port,
 		TimeIntegration: time.Now(),
 		TimeInteraktion: time.Now(),
-		Status:          utils.OK,
+		Status:          strconv.Itoa(http.StatusOK),
 		ActiveStatus:    utils.Active,
 	}
 
@@ -119,7 +119,7 @@ func StartSol(
 					log.Error("Error generating comUUID")
 					return
 				}
-				response := utils.Response{
+				response := utils.ResponseModel{
 					STAR:      sol.StarUUID,
 					SOL:       sol.SolUUID,
 					COMPONENT: intValue,
@@ -189,17 +189,17 @@ func sendRequestsToActiveComponents(uuid int) error {
 		if resp.StatusCode != http.StatusOK {
 			log.Error("Received non-OK response", slog.Int("statusCode", resp.StatusCode))
 			entry.ActiveStatus = utils.Disconnected
-			entry.Status = utils.ComponentStatus(resp.StatusCode)
+			entry.Status = strconv.Itoa(resp.StatusCode)
 		} else {
 			log.Info("Successfully sent GET request", slog.Int("uuid", uuid))
-			var heartBeatRequestModel utils.HeartBeatRequestModel
-			err := json.NewDecoder(resp.Body).Decode(&heartBeatRequestModel)
+			var RequestModel utils.RequestModel
+			err := json.NewDecoder(resp.Body).Decode(&RequestModel)
 			if err != nil {
 				log.Error("Failed to decode response body", slog.String("error", err.Error()))
-				entry.Status = utils.ComponentStatus(resp.StatusCode)
+				entry.Status = strconv.Itoa(resp.StatusCode)
 			} else {
-				entry.Status = utils.ComponentStatus(heartBeatRequestModel.STATUS)
-				log.Info("Successfully parsed response body", slog.Any("heartBeatRequestModel", heartBeatRequestModel))
+				entry.Status = RequestModel.STATUS
+				log.Info("Successfully parsed response body", slog.Any("RequestModel", RequestModel))
 			}
 		}
 	}
@@ -212,14 +212,14 @@ func sendRequestsToActiveComponents(uuid int) error {
 /*
 createComponent - Seite 4 im Aufgabenblatt Aufgabe 1.0
 
-Bitte das RegisterRequestModel nutzen.
+Bitte das RequestModel nutzen.
 
 Damit SOL den auch kennt, gibt die neue Komponente selbst ihren derzeitigen Status an. Außerdem werden Angaben zum Stern
 übermittelt, die von SOL vor der Integration auch geprüft werden, damit sichergestellt ist, dass auch der „richtige“
 Stern gemeint ist.
 */
 func registerComponentBySol(response con.RestIn) con.RestOut {
-	var registerRequestModel utils.RegisterRequestModel
+	var registerRequestModel utils.RequestModel
 	// err := response.Context.BindJSON(&registerRequestModel)
 	err := response.Context.ShouldBindJSON(&registerRequestModel)
 	// If the JSON is not valid, return 401 Unauthorized
@@ -228,13 +228,13 @@ func registerComponentBySol(response con.RestIn) con.RestOut {
 	}
 
 	// Check if all the info from the component is correct
-	if checkConflict(registerRequestModel, response.IpAndPort) != utils.OK {
+	if checkConflict(registerRequestModel, response.IpAndPort) != http.StatusOK {
 		return con.RestOut{StatusCode: http.StatusConflict}
-	} else if checkUnauthorized(registerRequestModel) != utils.OK {
+	} else if checkUnauthorized(registerRequestModel) != http.StatusOK {
 		return con.RestOut{StatusCode: http.StatusUnauthorized}
-	} else if checkNoRoomLeft() != utils.OK {
+	} else if checkNoRoomLeft() != http.StatusOK {
 		return con.RestOut{StatusCode: http.StatusForbidden}
-	} else if checkNotFound(registerRequestModel) == utils.OK { // If the component is already in the list, return 409 Conflict
+	} else if checkNotFound(registerRequestModel) == http.StatusOK { // If the component is already in the list, return 409 Conflict
 		return con.RestOut{StatusCode: http.StatusConflict}
 	}
 
@@ -245,7 +245,7 @@ func registerComponentBySol(response con.RestIn) con.RestOut {
 		Port:            registerRequestModel.COMTCP,
 		TimeIntegration: time.Now(),
 		TimeInteraktion: time.Now(),
-		Status:          utils.OK,
+		Status:          strconv.Itoa(http.StatusOK),
 		ActiveStatus:    utils.Active,
 	}
 
@@ -261,28 +261,28 @@ Sekunden nochmal versucht. Wenn dann immer noch keine Verbindung zustande
 kommt, beendet sich die Komponente selbst.
 */
 func checkAvailabilityFromComponent(response con.RestIn) con.RestOut {
-	var registerRequestModel utils.RegisterRequestModel
+	var registerRequestModel utils.RequestModel
 	err := response.Context.ShouldBindJSON(&registerRequestModel)
 	if err != nil {
 		// Return 400 Bad Request if JSON is not valid
 		return con.RestOut{StatusCode: http.StatusBadRequest}
 	}
 
-	log.Info("The RegisterRequestModel",
-		slog.String("Star: ", registerRequestModel.STAR),
-		slog.String("Sol: ", strconv.Itoa(registerRequestModel.SOL)),
-		slog.String("Component: ", strconv.Itoa(registerRequestModel.COMPONENT)),
-		slog.String("ComIP: ", registerRequestModel.COMIP),
-		slog.String("ComTcp: ", strconv.Itoa(registerRequestModel.COMTCP)),
-		slog.String("Status: ", strconv.Itoa(registerRequestModel.STATUS)),
+	log.Info("RequestModel",
+		slog.String("Star", registerRequestModel.STAR),
+		slog.String("Sol", strconv.Itoa(registerRequestModel.SOL)),
+		slog.String("Component", strconv.Itoa(registerRequestModel.COMPONENT)),
+		slog.String("ComIP", registerRequestModel.COMIP),
+		slog.String("ComTcp", strconv.Itoa(registerRequestModel.COMTCP)),
+		slog.String("Status", registerRequestModel.STATUS),
 	)
 
 	// Check if info correct
-	if checkNotFound(registerRequestModel) != utils.OK {
+	if checkNotFound(registerRequestModel) != http.StatusOK {
 		return con.RestOut{StatusCode: http.StatusNotFound}
-	} else if checkUnauthorized(registerRequestModel) != utils.OK {
+	} else if checkUnauthorized(registerRequestModel) != http.StatusOK {
 		return con.RestOut{StatusCode: http.StatusUnauthorized}
-	} else if checkConflict(registerRequestModel, response.IpAndPort) != utils.OK {
+	} else if checkConflict(registerRequestModel, response.IpAndPort) != http.StatusOK {
 		return con.RestOut{StatusCode: http.StatusConflict}
 	}
 
@@ -309,16 +309,16 @@ func sendHeartBeatBack(response con.RestIn) con.RestOut {
 		return con.RestOut{StatusCode: http.StatusConflict}
 	}
 
-	heartBeatRequestModel := utils.HeartBeatRequestModel{
+	RequestModel := utils.RequestModel{
 		STAR:      sol.StarUUID,
 		SOL:       sol.SolUUID,
 		COMPONENT: sol.SolUUID,
 		COMIP:     sol.IPAddress,
 		COMTCP:    sol.Port,
-		STATUS:    int(utils.OK),
+		STATUS:    strconv.Itoa(http.StatusOK),
 	}
 
-	return con.RestOut{StatusCode: http.StatusOK, Body: heartBeatRequestModel}
+	return con.RestOut{StatusCode: http.StatusOK, Body: RequestModel}
 }
 
 /*
@@ -331,7 +331,7 @@ zustande kommt, beendet sich die Komponente selbst.
 func disconnectComponentFromStar(response con.RestIn) con.RestOut {
 	// TODO check if component is already deleted
 	var out con.RestOut
-	var registerRequestModel utils.RegisterRequestModel
+	var registerRequestModel utils.RequestModel
 
 	registerRequestModel.STAR = response.Context.Query("star")
 	stringValue := response.Context.Param("comUUID")
@@ -340,16 +340,16 @@ func disconnectComponentFromStar(response con.RestIn) con.RestOut {
 		out.StatusCode = http.StatusBadRequest
 	} else {
 		registerRequestModel.COMPONENT = comUUid
-		if checkNotFound(registerRequestModel) != utils.OK {
+		if checkNotFound(registerRequestModel) != http.StatusOK {
 			out.StatusCode = http.StatusNotFound
 		} else {
 			comEntry := solList[registerRequestModel.COMPONENT]
 			registerRequestModel.COMIP = comEntry.IPAddress
 			registerRequestModel.COMTCP = comEntry.Port
-			registerRequestModel.STATUS = int(comEntry.Status)
+			registerRequestModel.STATUS = comEntry.Status
 			registerRequestModel.SOL = sol.SolUUID
 
-			if checkUnauthorized(registerRequestModel) != utils.OK {
+			if checkUnauthorized(registerRequestModel) != http.StatusOK {
 				out.StatusCode = http.StatusUnauthorized
 			} else {
 				out.StatusCode = http.StatusOK
@@ -403,7 +403,7 @@ func createAndSaveMessage(response con.RestIn) con.RestOut {
 		STAR:    message.STAR,
 		ORIGIN:  message.ORIGIN,
 		SENDER:  message.SENDER,
-		VERSION: "1",
+		VERSION: 1,
 		CREATED: timestamp,
 		CHANGED: timestamp,
 		SUBJECT: subject,
@@ -581,16 +581,16 @@ func generateStarUUID(log slog.Logger) (string, error) {
 	return hashStr, nil
 }
 
-func checkUnauthorized(r utils.RegisterRequestModel) utils.ComponentStatus {
+func checkUnauthorized(r utils.RequestModel) int {
 	if r.STAR != sol.StarUUID || r.SOL != sol.SolUUID {
 		// Return 401 Unauthorized
-		return utils.Unauthorized
+		return http.StatusUnauthorized
 	}
 	// Return 200 OK
-	return utils.OK
+	return http.StatusOK
 }
 
-func checkNoRoomLeft() utils.ComponentStatus {
+func checkNoRoomLeft() int {
 	count := 0
 	for _, entry := range solList {
 		if entry.ActiveStatus == utils.Active {
@@ -599,48 +599,48 @@ func checkNoRoomLeft() utils.ComponentStatus {
 	}
 	if count >= lenOfSolList {
 		// Return 403 No room left
-		return utils.Forbidden
+		return http.StatusForbidden
 	}
 	// Return 200 OK
-	return utils.OK
+	return http.StatusOK
 }
 
-func checkNotFound(r utils.RegisterRequestModel) utils.ComponentStatus {
+func checkNotFound(r utils.RequestModel) int {
 	if !listContains(r.COMPONENT) {
 		// Return 404 Not Found
-		return utils.NotFound
+		return http.StatusNotFound
 	}
 	// Return 200 OK
-	return utils.OK
+	return http.StatusOK
 }
 
-func checkConflict(r utils.RegisterRequestModel, addr string) utils.ComponentStatus {
+func checkConflict(r utils.RequestModel, addr string) int {
 	addrs := strings.Split(addr, ":")
 	port, err := strconv.Atoi(addrs[1]) // Port von dem Component schickt nicht auf dem er hört
 	// TODO remove port == -1
 	if err != nil || port == -1 {
-		return utils.Conflict
+		return http.StatusConflict
 	}
 
-	if checkNotFound(r) == utils.OK && solList[r.COMPONENT].IPAddress != addrs[0] {
-		return utils.Conflict
+	if checkNotFound(r) == http.StatusOK && solList[r.COMPONENT].IPAddress != addrs[0] {
+		return http.StatusConflict
 	}
 
 	// r.COMTCP != port führt dazu das der Port von dem aus geschickt mit dem eingangsport der component verglichen wird.
 	// Das darf jedoch garnicht der gleiche Port sein.
-	if r.COMIP != addrs[0] || r.STATUS != 200 {
+	if r.COMIP != addrs[0] || r.STATUS != strconv.Itoa(200) {
 		log.Debug("hier is das problem",
 			slog.String("r.COMIP", r.COMIP),
 			slog.String("addrs[0]", addrs[0]),
 			slog.Int("r.COMTCP", r.COMTCP),
 			slog.Int("port", port),
-			slog.Int("r.STATUS", r.STATUS),
+			slog.String("r.STATUS", r.STATUS),
 		)
 		// Return 409 Conflict
-		return utils.Conflict
+		return http.StatusConflict
 	}
 	// Return 200 OK
-	return utils.OK
+	return http.StatusOK
 }
 
 func sendDeleteRequests() {
