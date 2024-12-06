@@ -87,7 +87,7 @@ func StartTCPServer(
 	inputChannel chan RestIn,
 	outputChannel chan RestOut,
 ) {
-	log = log.With(slog.String("Component", "TCP"))
+	log = log.With(slog.String("Server", "TCP"))
 
 	router := gin.Default()
 	for _, v := range endpoints {

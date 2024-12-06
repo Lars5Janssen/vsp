@@ -51,22 +51,13 @@ type MessageRequestModel struct { // 2.1
 	// Die Version einer Nachricht beginnt immer bei „1“.
 	// MSG-UUID := <NUMBER> . „@“ . <COM-UUID> // NUMBER ist ein zähler der Hochgezählt wird.
 	VERSION string `json:"version"`
-	CREATED string `json:"created"` // Zeitstempel in UNIX notation
-	CHANGED string `json:"changed"` // Zeitstempel in UNIX notation
-	SUBJECT string `json:"subject"` // UTF-8 wenn leer => 412
+	CREATED string `json:"created"`         // Zeitstempel in UNIX notation
+	CHANGED string `json:"changed"`         // Zeitstempel in UNIX notation
+	SUBJECT string `json:"subject,subject"` // UTF-8 wenn leer => 412
 	// Dieses wird zwar in beliebiger Länge angenommen, aber bei der Weiterverarbeitung
 	// (Weiterleiten, Speicherung, ...) gekürzt, und zwar bis zum ersten NEWLINE-Zeichen
 	// Alle „CARRIAGE RETURN“-Zeichen werden vor der weiteren Verarbeitung aus dem Betreff gelöscht.
 	MESSAGE string `json:"message"` // UTF-8
-}
-
-// Custom validation function to check if a string is either a number or an email
-func validateOrigin(fl validator.FieldLevel) bool {
-	origin := fl.Field().String()
-	numberRegex := regexp.MustCompile(`^\d+$`)
-	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
-
-	return numberRegex.MatchString(origin) || emailRegex.MatchString(origin)
 }
 
 /*
@@ -106,12 +97,37 @@ type MessageListId struct {
 	MESSAGES     []MessageModelId `json:"messages" validate:"required"`
 }
 
-// Validate the struct
+// Validate the ResponseModel struct
 func (r *ResponseModel) Validate() error {
+	validate := validator.New()
+	return validate.Struct(r)
+}
+
+// Validate the MessageRequestModel struct
+func (r *MessageRequestModel) Validate() error {
 	validate := validator.New()
 	err := validate.RegisterValidation("origin", validateOrigin)
 	if err != nil {
 		return err
 	}
+	err = validate.RegisterValidation("subject", validateSubject)
+	if err != nil {
+		return err
+	}
 	return validate.Struct(r)
+}
+
+// Custom validation function to check if a string is either a number or an email => 412
+func validateOrigin(fl validator.FieldLevel) bool {
+	origin := fl.Field().String()
+	numberRegex := regexp.MustCompile(`^\d+$`)
+	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+
+	return numberRegex.MatchString(origin) || emailRegex.MatchString(origin)
+}
+
+// Sind „Origin“ oder das Subject der Nachricht leer... => 412
+func validateSubject(fl validator.FieldLevel) bool {
+	subject := fl.Field().String()
+	return subject == ""
 }
