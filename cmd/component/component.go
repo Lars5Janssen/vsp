@@ -174,7 +174,7 @@ func registerByStar() {
 		COMPONENT: component.ComUUID,
 		COMIP:     component.ComIP,
 		COMTCP:    component.ComPort,
-		STATUS:    http.StatusOK,
+		STATUS:    strconv.Itoa(http.StatusOK),
 	}
 
 	jsonRegisterRequest, err := json.Marshal(reqisterRequestModel)

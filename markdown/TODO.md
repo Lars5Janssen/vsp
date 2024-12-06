@@ -9,3 +9,6 @@
 - [ ] Input thread
 - [ ] TCP Send
 - [ ] UDP Listen
+
+# Fragen
+- Soll es eigene Statusmeldungen geben oder können wir die classy one von http nehmen
