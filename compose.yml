@@ -1,12 +1,7 @@
 services:
   sol:
-# Keine image angabe? why?
-    build: .
-    entrypoint: app
-    environment:
-      - SOL_ROOT_HOST=localhost
-    ports:
-      - "8006:8006"
+    build: ..
+    entrypoint: app 
     depends_on:
       - component
     stdin_open: true
@@ -15,7 +10,7 @@ services:
       vs-network:
 
   component:
-    build: .
+    build: ..
     entrypoint: app -sleep -killSol
     stdin_open: true
     tty: true

@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
-	"net"
+	n "net"
 	"os"
 	"sync"
 	"time"
@@ -13,7 +13,7 @@ import (
 	"github.com/Lars5Janssen/vsp/cmd"
 	"github.com/Lars5Janssen/vsp/cmd/component"
 	"github.com/Lars5Janssen/vsp/cmd/sol"
-	"github.com/Lars5Janssen/vsp/connection"
+	con "github.com/Lars5Janssen/vsp/connection"
 )
 
 // TODO better logging currently all is manually set = bad (component string in every file but main.go)
@@ -25,9 +25,7 @@ func main() {
 	ip := "127.0.0.1" // nimmt localhost als IP-Adresse
 
 	// Parse command-line arguments
-	portUdp := flag.Int("port", 8006, "Port for UDP")                               // -port=8006
-	portSol := flag.Int("portSol", 8007, "Port for SOL")                            // -portSol=8007
-	portComp := flag.Int("portComp", 8008, "Port for Component")                    // -portComp=8008
+	port := flag.Int("port", 8006, "Port to run the server on")                     // -port=8006
 	rerun := flag.Bool("rerun", false, "Enable this flag to automatically restart") // -rerun
 	sleep := flag.Bool("sleep", false, "Enable this flag to sleep once at start")
 	stopIfSol := flag.Bool("killSol", false, "Stop if the process would be sol")
@@ -42,11 +40,7 @@ func main() {
 		Level: lvl,
 	}))
 
-	// fmt.Println(string(cmdOut))
-	/*adLs, _ := n.InterfaceAddrs()
-	fmt.Println(adLs[1])
-	ip = adLs[1].String()
-	ip = strings.Split(ip, "/")[0]*/
+	// Relevant um IPV6 zu IPV4 zu konvertieren, da andere Geräte in der Regel IPV6 schicken.
 	ip, err := getFirstIPv4Addr()
 	if err != nil {
 		fmt.Println("Error:", err)
@@ -54,31 +48,31 @@ func main() {
 		fmt.Println("First IPv4 Address:", ip)
 	}
 
-	log.Info(
+	/*	log.Info(
 		"Start of program",
 		slog.String("Component", "Main"),
-		slog.Int("Port", *portUdp),
+		slog.Int("Port", *port),
 		slog.Bool("ReRun?", *rerun),
 		slog.Bool("Sleep?", *sleep),
 		slog.Bool("killSol?", *stopIfSol),
 		slog.Int("MaxActiveComponents", *maxActiveComponents),
-	)
+	)*/
 
 	// Channels, Contexts & WaitGroup (Thread Stuff)
 	// Channels:
-	inputWorker := make(chan string)           // Input -> Worker
-	udpMainSol := make(chan connection.UDP, 1) // UDP -> SOL/Main
-	restIn := make(chan connection.RestIn)
-	restOut := make(chan connection.RestOut)
+	inputWorker := make(chan string)    // Input -> Worker
+	udpMainSol := make(chan con.UDP, 1) // UDP -> SOL/Main
+	restIn := make(chan con.RestIn)
+	restOut := make(chan con.RestOut)
 	var wg sync.WaitGroup
 
 	// Contexts:
 	_, udpCancel := context.WithCancel(context.Background())
 	workerCTX, workerCancel := context.WithCancel(context.Background())
 
-	/*	go connection.StartTCPServer(log, *port, cmd.GetComponentEndpoints(), restIn, restOut)*/
+	/*	go net.StartTCPServer(log, *port, cmd.GetComponentEndpoints(), restIn, restOut)*/
 	workerCTX = context.WithValue(workerCTX, "ip", ip)
-	workerCTX = context.WithValue(workerCTX, "port", *portUdp)
+	workerCTX = context.WithValue(workerCTX, "port", *port)
 	workerCTX = context.WithValue(workerCTX, "maxActiveComponents", *maxActiveComponents)
 
 	go cmd.StartUserInput(log, inputWorker, workerCancel, udpCancel)
@@ -96,9 +90,9 @@ func main() {
 	for *rerun || firstRun {
 		firstRun = false
 
-		go connection.ListenForBroadcastMessage(log, *portUdp, udpMainSol) // udpCTX?
+		go con.ListenForBroadcastMessage(log, *port, udpMainSol) // udpCTX?
 
-		var response connection.UDP
+		var response con.UDP
 		noMessage := true
 
 		// TODO Timeout verstellbar machen
@@ -106,7 +100,7 @@ func main() {
 			if !noMessage {
 				continue
 			}
-			err := connection.SendHello(log, *portUdp)
+			err := con.SendHello(log, *port)
 			if err != nil {
 				log.Error("Could not Send Hello")
 				return
@@ -125,7 +119,7 @@ func main() {
 		if noMessage && !*stopIfSol {
 			log.Info("Starting as Sol")
 			wg.Add(1)
-			go connection.StartTCPServer(log, ip, *portSol, sol.GetSolEndpoints(), restIn, restOut)
+			go con.StartTCPServer(log, ip, *port, sol.GetSolEndpoints(), restIn, restOut)
 			go func() {
 				defer wg.Done()
 				sol.StartSol(workerCTX, log, inputWorker, udpMainSol, restIn, restOut)
@@ -136,7 +130,7 @@ func main() {
 			log.Info("Starting as Component")
 			udpCancel()
 			wg.Add(1)
-			go connection.StartTCPServer(log, ip, *portComp, component.GetComponentEndpoints(), restIn, restOut)
+			go con.StartTCPServer(log, ip, *port, component.GetComponentEndpoints(), restIn, restOut)
 			go func() {
 				defer wg.Done()
 				component.StartComponent(workerCTX, log, inputWorker, restIn, restOut, response.Message)
@@ -150,14 +144,14 @@ func main() {
 }
 
 func getFirstIPv4Addr() (string, error) {
-	addrs, err := net.InterfaceAddrs()
+	addrs, err := n.InterfaceAddrs()
 	if err != nil {
 		return "", err
 	}
 
 	for _, addr := range addrs {
-		if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() {
-			if ipNet.IP.To4() != nil {
+		if ipNet, ok := addr.(*n.IPNet); ok && !ipNet.IP.IsLoopback() {
+			if ipNet.IP.To4() != nil { // && ipNet.Mask.String() == "ffffff00"
 				return ipNet.IP.String(), nil
 			}
 		}

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net"
 
-	n "github.com/Lars5Janssen/vsp/connection"
+	con "github.com/Lars5Janssen/vsp/connection"
 
 	"log/slog"
 	"net/http"
@@ -13,8 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Lars5Janssen/vsp/utils"
 	"github.com/gin-gonic/gin"
+
+	"github.com/Lars5Janssen/vsp/utils"
 )
 
 var component = Component{
@@ -37,8 +38,8 @@ func StartComponent(
 	ctx context.Context,
 	logger *slog.Logger,
 	commands chan string,
-	restIn chan n.RestIn,
-	restOut chan n.RestOut,
+	restIn chan con.RestIn,
+	restOut chan con.RestOut,
 	response string,
 ) {
 	logger = logger.With(slog.String("Component", "Component"))
@@ -48,7 +49,7 @@ func StartComponent(
 	initializeComponent(logger, ctx, response)
 
 	// TODO Hier scheint eine Loop logic sein zu müssen damit die Ports available bleiben
-	go n.AttendHTTP(logger, restIn, restOut, endpoints) // Will Handle endpoints in this thread
+	go con.AttendHTTP(logger, restIn, restOut, endpoints) // Will Handle endpoints in this thread
 
 	registerByStar()
 
@@ -118,8 +119,10 @@ func initializeComponent(log *slog.Logger, ctx context.Context, response string)
 
 	// Create a custom DialContext function
 	dialer := &net.Dialer{
-		LocalAddr: &net.TCPAddr{Port: component.ComPort},
-		Timeout:   30 * time.Second,
+		LocalAddr: &net.TCPAddr{IP: net.ParseIP(component.ComIP)},
+		// Port: component.ComPort da hier schon der eingangsport ist führt das zu:
+		// dial tcp :8006->172.17.0.2:8006: bind: address already in use nur beim heartbeat
+		Timeout: 30 * time.Second,
 	}
 
 	customDialContext := func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -142,41 +145,36 @@ func parseResponseIntoComponent(response string, log *slog.Logger) {
 	cleanedInput := strings.ReplaceAll(response, "\\", "")
 
 	// JSON-Daten unmarshallen
-	var parsedData map[string]interface{}
+	var parsedData utils.ResponseModel
 	err := json.Unmarshal([]byte(cleanedInput), &parsedData)
-
 	if err != nil {
 		log.Error("Error while parsing response")
 		return
 	}
+	err = parsedData.Validate()
+	if err != nil {
+		log.Error("Error while validating response")
+		return
+	}
 
 	// Daten in struct schreiben
-	for key, value := range parsedData {
-		switch strings.ToLower(key) {
-		case "star":
-			component.StarUUID = value.(string)
-		case "sol":
-			component.SolUUID = int(value.(float64)) // Com UUID des stars?
-		case "solip":
-			component.SolIP = value.(string)
-		case "soltcp":
-			component.SolPort = int(value.(float64))
-		case "component":
-			component.ComUUID = int(value.(float64))
-		}
-	}
+	component.ComUUID = parsedData.COMPONENT
+	component.SolPort = parsedData.SOLTCP
+	component.SolUUID = parsedData.SOL
+	component.StarUUID = parsedData.STAR
+	component.SolIP = parsedData.SOLIP
 }
 
 func registerByStar() {
 	url := urlSolPräfix + "/vs/v1/system"
 
-	var reqisterRequestModel = utils.RegisterRequestModel{
+	var reqisterRequestModel = utils.RequestModel{
 		STAR:      component.StarUUID,
 		SOL:       component.SolUUID,
 		COMPONENT: component.ComUUID,
 		COMIP:     component.ComIP,
 		COMTCP:    component.ComPort,
-		STATUS:    http.StatusOK,
+		STATUS:    strconv.Itoa(http.StatusOK),
 	}
 
 	jsonRegisterRequest, err := json.Marshal(reqisterRequestModel)
@@ -205,13 +203,8 @@ func registerByStar() {
 		return
 	} else {
 		if err != nil {
-			log.Error("Failed to send request to SOL. Exiting Component. Error: ", err.Error())
-			runComponentThread = false
-		} else {
-			log.Error("Failed to send request to SOL. Exiting Component")
-			runComponentThread = false
+			log.Error("Failed to send request to SOL: ", slog.String("error", err.Error()))
 		}
-
 	}
 }
 
@@ -224,43 +217,43 @@ erhält, baut SOL zum <STARPORT>/tcp der Komponente eine UNICAST-Verbindung auf 
 Komponente noch aktiv und funktionsfähig ist. Diese Kontrollmöglichkeit muss SOL auch für sich selbst unterstützen!
 Auch hier kommt eine REST-API zum Einsatz.
 */
-func sendHeartBeatBackToSol(response n.RestIn) n.RestOut {
+func sendHeartBeatBackToSol(response con.RestIn) con.RestOut {
 	log.Info("Received Heartbeat from SOL")
-	model := utils.HeartBeatRequestModel{
+	model := utils.RequestModel{
 		STAR:      component.StarUUID,
 		SOL:       component.SolUUID,
 		COMPONENT: component.ComUUID,
 		COMIP:     component.ComIP,
 		COMTCP:    component.ComPort,
-		STATUS:    component.Status,
+		STATUS:    strconv.Itoa(component.Status),
 	}
 
 	if response.Context.Query("star") != component.StarUUID {
-		return n.RestOut{StatusCode: http.StatusUnauthorized}
+		return con.RestOut{StatusCode: http.StatusUnauthorized}
 	}
 
-	comUUID := response.Context.Param("comUUID")
+	comUUID := response.Context.Param("comUUID?star=starUUID")
 
 	if comUUID != "" || comUUID != strconv.Itoa(component.ComUUID) {
-		return n.RestOut{StatusCode: http.StatusUnauthorized}
+		return con.RestOut{StatusCode: http.StatusUnauthorized}
 	}
-	return n.RestOut{StatusCode: http.StatusOK, Body: model}
+	return con.RestOut{StatusCode: http.StatusOK, Body: model}
 }
 
 func sendHeartBeatToSol(log *slog.Logger) bool {
 	log.Info("Sending Heartbeat to SOL")
 	url := urlSolPräfix + "/vs/v1/system/" + strconv.Itoa(component.ComUUID)
 
-	var heartBeatRequestModel = utils.HeartBeatRequestModel{
+	var RequestModel = utils.RequestModel{
 		STAR:      component.StarUUID,
 		SOL:       component.SolUUID,
 		COMPONENT: component.ComUUID,
 		COMIP:     component.ComIP,
 		COMTCP:    component.ComPort,
-		STATUS:    component.Status,
+		STATUS:    strconv.Itoa(component.Status),
 	}
 
-	jsonHeartBeatRequest, err := json.Marshal(heartBeatRequestModel)
+	jsonHeartBeatRequest, err := json.Marshal(RequestModel)
 	if err != nil {
 		log.Error("Error while marshalling data", slog.String("error", err.Error()))
 		return false
@@ -278,7 +271,7 @@ func sendHeartBeatToSol(log *slog.Logger) bool {
 		return false
 	}
 	if resp.StatusCode != http.StatusOK {
-		log.Error("Failed to send heartbeat to SOL:"+component.SolIP+": "+strconv.Itoa(component.SolPort)+", Wrong Status: ", slog.Int("status", resp.StatusCode))
+		log.Error("Failed to send heartbeat to SOL:"+component.SolIP+":"+strconv.Itoa(component.SolPort)+", Wrong Status: ", slog.Int("status", resp.StatusCode))
 		return false
 	}
 
@@ -350,45 +343,45 @@ func disconnectAfterExit() {
 /*
 createOrForwardMessage nutzt das MessageRequestModel 2.1
 */
-func createOrForwardMessage(response n.RestIn) n.RestOut {
+func createOrForwardMessage(response con.RestIn) con.RestOut {
 	body := gin.H{"message": "test"}
-	return n.RestOut{StatusCode: http.StatusOK, Body: body}
+	return con.RestOut{StatusCode: http.StatusOK, Body: body}
 }
 
 /*
 Aufgabe 2.3 getListOfAllMessages
 */
-func getListOfAllMessages(response n.RestIn) n.RestOut {
+func getListOfAllMessages(response con.RestIn) con.RestOut {
 	body := gin.H{"message": "test"}
-	return n.RestOut{StatusCode: http.StatusOK, Body: body}
+	return con.RestOut{StatusCode: http.StatusOK, Body: body}
 }
 
 /*
 Aufgabe 2.3 getMessageByUUID
 */
-func getMessageByUUID(response n.RestIn) n.RestOut {
+func getMessageByUUID(response con.RestIn) con.RestOut {
 	body := gin.H{"message": "test"}
-	return n.RestOut{StatusCode: http.StatusOK, Body: body}
+	return con.RestOut{StatusCode: http.StatusOK, Body: body}
 }
 
 /*
 2.2: Weiterleiten von DELETE Requests von Komponente an Sol
 */
-func forwardDeletingMessages(response n.RestIn) n.RestOut {
+func forwardDeletingMessages(response con.RestIn) con.RestOut {
 	body := gin.H{"message": "test"}
-	return n.RestOut{StatusCode: http.StatusOK, Body: body}
+	return con.RestOut{StatusCode: http.StatusOK, Body: body}
 }
 
 /**
 	Helper Methods
  **/
 
-func notAvailable(_ n.RestIn) n.RestOut {
-	return n.RestOut{StatusCode: http.StatusNotFound}
+func notAvailable(_ con.RestIn) con.RestOut {
+	return con.RestOut{StatusCode: http.StatusNotFound}
 }
 
-func iAmNotSol(_ n.RestIn) n.RestOut {
-	return n.RestOut{StatusCode: http.StatusUnauthorized}
+func iAmNotSol(_ con.RestIn) con.RestOut {
+	return con.RestOut{StatusCode: http.StatusUnauthorized}
 }
 
 func setRunComponentThread(value bool) {

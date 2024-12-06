@@ -1,60 +1,60 @@
 package sol
 
 import (
-	n "github.com/Lars5Janssen/vsp/connection"
+	con "github.com/Lars5Janssen/vsp/connection"
 )
 
-func GetSolEndpoints() []n.Endpoint {
+func GetSolEndpoints() []con.Endpoint {
 	return solEndpoints
 }
 
-var solEndpoints = []n.Endpoint{
+var solEndpoints = []con.Endpoint{
 	{
 		Name: []string{"/vs/v1/system"}, // component an sol
-		AcceptedMethods: map[n.Method]n.Handler{
-			n.POST: registerComponentBySol,
+		AcceptedMethods: map[con.Method]con.Handler{
+			con.POST: registerComponentBySol,
 		},
 	},
 	{
 		// ?star=starUUID
 		// die query's müssen herausgefiltert werden.
 		Name: []string{"/vs/v1/system/:comUUID"},
-		AcceptedMethods: map[n.Method]n.Handler{
-			n.GET:    sendHeartBeatBack,
-			n.PATCH:  checkAvailabilityFromComponent, // siehe methodenkommentar
-			n.DELETE: disconnectComponentFromStar,
+		AcceptedMethods: map[con.Method]con.Handler{
+			con.GET:    sendHeartBeatBack,
+			con.PATCH:  checkAvailabilityFromComponent, // siehe methodenkommentar
+			con.DELETE: disconnectComponentFromStar,
 		},
 	},
 	/*{
 		Name: []string{"/vs/v1/system/:comUUID?star=starUUID"},
-		AcceptedMethods: map[n.Method]n.Handler{
-			n.GET: sendHeartBeatBack,
+		AcceptedMethods: map[con.Method]con.Handler{
+			con.GET: sendHeartBeatBack,
 			// Endpunkt fuer Komponente meldet sich von Stern ab
-			n.DELETE: disconnectComponentFromStar, // Exit befehl von einer Komponente
+			con.DELETE: disconnectComponentFromStar, // Exit befehl von einer Komponente
 		},
 	},*/
 	{
 		// ?star=starUUID&scope=scope&view=view
 		// sind query's die der Client mitschickt welche dann herausgefiltert werden
 		Name: []string{"/vs/v1/messages"},
-		AcceptedMethods: map[n.Method]n.Handler{
-			n.POST: createAndSaveMessage,
-			n.GET:  getListOfAllMessages,
+		AcceptedMethods: map[con.Method]con.Handler{
+			con.POST: createAndSaveMessage,
+			con.GET:  getListOfAllMessages,
 		},
 	},
 	{
 		// ?star=starUUID
 		// sind query's die der Client mitschickt welche dann herausgefiltert werden
 		Name: []string{"/vs/v1/messages/:msgUUID"},
-		AcceptedMethods: map[n.Method]n.Handler{
-			n.GET:    getMessageByUUID,
-			n.DELETE: deleteMessage,
+		AcceptedMethods: map[con.Method]con.Handler{
+			con.GET:    getMessageByUUID,
+			con.DELETE: deleteMessage,
 		},
 	},
 	/*{
 		Name: []string{"/vs/v1/messages?star=starUUID&scope=scope&view=view"},
-		AcceptedMethods: map[n.Method]n.Handler{
-			n.GET: getListOfAllMessages,
+		AcceptedMethods: map[con.Method]con.Handler{
+			con.GET: getListOfAllMessages,
 		},
 	},*/
 }
