@@ -444,6 +444,8 @@ func getListOfAllMessages(response con.RestIn) con.RestOut {
 	scope := response.Context.Query("scope")
 	view := response.Context.Query("view")
 
+	log.Info("View: " + view)
+
 	if starUuid != sol.StarUUID {
 		return con.RestOut{StatusCode: http.StatusUnauthorized}
 	}
@@ -504,6 +506,9 @@ func getMessageByUUID(response con.RestIn) con.RestOut {
 		return con.RestOut{StatusCode: http.StatusUnauthorized}
 	} else if msgId == "" {
 		return con.RestOut{StatusCode: http.StatusNotFound}
+		// Dennoch rückgabe leere Liste
+		// Auch wenn die <MSG-UUID> nicht existiert, wird
+		//eine leere Liste zurückgegeben und die Antwort „404“.
 	} else if _, exists := msgList[msgId]; !exists {
 		return con.RestOut{StatusCode: http.StatusNotFound}
 	}
