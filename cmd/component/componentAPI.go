@@ -38,7 +38,7 @@ var endpoints = []con.Endpoint{
 		// sind query's die der Client mitschickt welche dann herausgefiltert werden
 		Name: []string{"/vs/v1/messages"},
 		AcceptedMethods: map[con.Method]con.Handler{
-			con.GET:  notAvailable,
+			con.GET:  getListOfAllMessages,
 			con.POST: forwardMessage, // komponenten können messages erstellen und auch an sol weiterleiten
 		},
 	},
@@ -48,7 +48,7 @@ var endpoints = []con.Endpoint{
 		Name: []string{"/vs/v1/messages/:msgUUID"},
 		AcceptedMethods: map[con.Method]con.Handler{
 			con.DELETE: forwardDeletingMessages, // auch für SolAPI
-			con.GET:    notAvailable,
+			con.GET:    getMessageByUUID,
 		},
 	},
 	/*{

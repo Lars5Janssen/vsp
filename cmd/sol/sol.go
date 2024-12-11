@@ -503,7 +503,7 @@ func getMessageByUUID(response con.RestIn) con.RestOut {
 	if starUuid != sol.StarUUID {
 		return con.RestOut{StatusCode: http.StatusUnauthorized}
 	} else if msgId == "" {
-		return con.RestOut{StatusCode: http.StatusNotFound}
+		return con.RestOut{StatusCode: http.StatusNotFound} // Dennoch rückgabe leere Liste
 	} else if _, exists := msgList[msgId]; !exists {
 		return con.RestOut{StatusCode: http.StatusNotFound}
 	}

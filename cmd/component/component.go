@@ -375,7 +375,6 @@ func forwardMessage(response con.RestIn) con.RestOut {
 
 	if message.STAR != component.StarUUID {
 		return con.RestOut{StatusCode: http.StatusUnauthorized}
-		// TODO Soll schon auf den korrekten Star schon bei der Komponente abgefangen werden?
 	}
 
 	return sendMessageToSol(message)
@@ -393,8 +392,48 @@ func getListOfAllMessages(response con.RestIn) con.RestOut {
 Aufgabe 2.3 getMessageByUUID
 */
 func getMessageByUUID(response con.RestIn) con.RestOut {
-	body := gin.H{"message": "test"}
-	return con.RestOut{StatusCode: http.StatusOK, Body: body}
+	starUuid := response.Context.Query("star")
+	msgId := response.Context.Param("msgUUID")
+
+	if starUuid != component.StarUUID {
+		return con.RestOut{StatusCode: http.StatusUnauthorized}
+	} else if msgId == "" {
+		return con.RestOut{StatusCode: http.StatusNotFound}
+	}
+	url := urlSolPraefix + "/vs/v1/messages/" + msgId + "?star=" + starUuid
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		log.Error("Failed to create POST request", slog.String("error", err.Error()))
+		return con.RestOut{StatusCode: http.StatusConflict, Body: gin.H{"error": err.Error()}}
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Error("Failed to send Request to SOL with id: "+component.StarUUID+".", slog.String("error", err.Error()))
+		return con.RestOut{StatusCode: http.StatusInternalServerError, Body: gin.H{"error": err.Error()}}
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Error("Failed to read response body", slog.String("error", err.Error()))
+		return con.RestOut{StatusCode: http.StatusInternalServerError, Body: gin.H{"error": err.Error()}}
+	}
+
+	var respBody interface{}
+	err = json.Unmarshal(body, &respBody)
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return con.RestOut{StatusCode: http.StatusUnauthorized}
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return con.RestOut{StatusCode: http.StatusNotFound, Body: respBody}
+	}
+	if resp.StatusCode == http.StatusPreconditionFailed {
+		return con.RestOut{StatusCode: http.StatusPreconditionFailed}
+	}
+
+	return con.RestOut{StatusCode: http.StatusOK, Body: respBody}
 }
 
 /*
@@ -460,7 +499,7 @@ func sendMessageToSol(message utils.MessageRequestModel) con.RestOut {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Error("Failed to read response body", slog.String("error", err.Error()))
-		return con.RestOut{StatusCode: http.StatusInternalServerError, Body: gin.H{"error": err.Error()}}
+		return con.RestOut{StatusCode: http.StatusBadRequest, Body: gin.H{"error": err.Error()}}
 	}
 
 	if resp.StatusCode == http.StatusUnauthorized {
