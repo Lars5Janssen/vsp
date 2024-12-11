@@ -1,4 +1,8 @@
 # Befehle fuer das Benutzen von Docker
+If you want GIN Debug logs, comment the env line in the dockerfile out
+```dockerfile
+# ENV GIN_MODE="release"
+```
 
 ## Starting Docker compose
 Under Linux:
