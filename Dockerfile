@@ -2,6 +2,9 @@ FROM golang:1.23
 
 WORKDIR /usr/src/app
 
+# Create the logs directory
+RUN mkdir -p /app/logs
+
 # RUN apt update -y
 # RUN apt upgrade -y
 # RUN apt install iproute2 -y
