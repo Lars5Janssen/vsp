@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 cat /app/logs/compile.log
 if [[ "$1" == "NotSol" ]]; then
     screen -dmS app app -sleep -killSol
