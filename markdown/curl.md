@@ -11,9 +11,9 @@ curl -X DELETE http://172:17:0:2:8006/vs/v1/system/1000
 #### Curl to Component
 ```bash
 curl -X POST http://172.17.0.3:8006/vs/v1/messages -H "Content-Type: application/json" -d '{
-"STAR": "13b327bca6763d08822bb8c159d96da8",
-"ORIGIN": "2040",
-"SENDER": "2040",
+"STAR": "857edb5497c4d9a8edaafaa0225d66bd",
+"ORIGIN": "1382",
+"SENDER": "1382",
 "MSGID": "",
 "VERSION": "",
 "CREATED": "",
@@ -25,9 +25,9 @@ curl -X POST http://172.17.0.3:8006/vs/v1/messages -H "Content-Type: application
 #### Curl to Sol
 ```bash
 curl -X POST http://172.17.0.2:8006/vs/v1/messages -H "Content-Type: application/json" -d '{
-"STAR": "9343e3029e602dc3e2336a48b17d3d3c",
-"ORIGIN": "7165",
-"SENDER": "7165",
+"STAR": "c89cf30b5c8ebdd811736f65896b1a0f",
+"ORIGIN": "5374",
+"SENDER": "5374",
 "MSGID": "",
 "VERSION": "",
 "CREATED": "",
@@ -45,7 +45,7 @@ curl -X POST http://172.17.0.2:8006/vs/v1/messages -H "Content-Type: application
 
 #### Curl to Sol
 ```bash
- curl -X GET http://172.17.0.2:8006/vs/v1/messages?star=f55998bb998fa316ee82a6dc3245bd42&scope=all&view=id
+ curl -X GET http://172.17.0.2:8006/vs/v1/messages?star=c89cf30b5c8ebdd811736f65896b1a0f&scope=all&view=id
 ```
 
 ### GET message

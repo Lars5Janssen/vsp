@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net"
+	"reflect"
 
 	con "github.com/Lars5Janssen/vsp/connection"
 
@@ -178,45 +179,34 @@ func registerByStar() {
 		STATUS:    strconv.Itoa(http.StatusOK),
 	}
 
-	jsonRegisterRequest, err := json.Marshal(reqisterRequestModel)
-	if err != nil {
-		log.Error("Error while marshalling data", slog.String("error", err.Error()))
+	resp := sendMessageToSol(reqisterRequestModel, url, "POST")
+
+	if reflect.TypeOf(resp) == reflect.TypeOf(con.RestOut{}) {
 		return
 	}
 
-	req, err := http.NewRequest("POST", url, strings.NewReader(string(jsonRegisterRequest)))
-	if err != nil {
-		log.Error("Failed to create POST request", slog.String("error", err.Error()))
-	}
+	respGeneralRequest := resp.(utils.GeneralResponse)
 
-	resp, err := client.Do(req)
-	if err == nil && resp != nil {
-		switch resp.StatusCode {
-		case http.StatusOK:
-			log.Info("Successfully registered by Sol")
-		case http.StatusUnauthorized:
-			log.Error("Unauthorized to register by Sol")
-		case http.StatusForbidden:
-			log.Error("No room left")
-		case http.StatusConflict:
-			log.Error("The request was invalid")
-		}
+	switch respGeneralRequest.STATUSCODE {
+	case http.StatusOK:
+		log.Info("Successfully registered by Sol")
 		return
-	} else {
-		if err != nil {
-			log.Error("Failed to send request to SOL: ", slog.String("error", err.Error()))
-		}
+	case http.StatusUnauthorized:
+		log.Error("Unauthorized to register by Sol")
+		return
+	case http.StatusForbidden:
+		log.Error("No room left")
+		return
+	case http.StatusConflict:
+		log.Error("The request was invalid")
+		return
 	}
+	return
 }
 
 /*
 sendHeartBeatBackToSol 1.1 Pflege des Sterns – Kontrolle der Komponenten
 sendHeartBeatToSol 1.1 Pflege des Sterns – Kontrolle der Komponenten
-
-Wenn SOL für eine aktive Komponente 60 Sekunden nach der letzten Meldung keine neue Meldung mit einem Status von „200“
-erhält, baut SOL zum <STARPORT>/tcp der Komponente eine UNICAST-Verbindung auf und kontrolliert selbst, ob die
-Komponente noch aktiv und funktionsfähig ist. Diese Kontrollmöglichkeit muss SOL auch für sich selbst unterstützen!
-Auch hier kommt eine REST-API zum Einsatz.
 */
 func sendHeartBeatBackToSol(response con.RestIn) con.RestOut {
 	log.Info("Received Heartbeat from SOL")
@@ -238,6 +228,7 @@ func sendHeartBeatBackToSol(response con.RestIn) con.RestOut {
 	if comUUID != "" || comUUID != strconv.Itoa(component.ComUUID) {
 		return con.RestOut{StatusCode: http.StatusUnauthorized}
 	}
+
 	return con.RestOut{StatusCode: http.StatusOK, Body: model}
 }
 
@@ -254,24 +245,19 @@ func sendHeartBeatToSol(log *slog.Logger) bool {
 		STATUS:    strconv.Itoa(component.Status),
 	}
 
-	jsonHeartBeatRequest, err := json.Marshal(RequestModel)
-	if err != nil {
-		log.Error("Error while marshalling data", slog.String("error", err.Error()))
+	resp := sendMessageToSol(RequestModel, url, "PATCH")
+
+	if reflect.TypeOf(resp) == reflect.TypeOf(con.RestOut{}) {
+		log.Info("Failed to send heartbeat to SOL: " + component.SolIP +
+			":" + strconv.Itoa(component.SolPort))
 		return false
 	}
 
-	req, err := http.NewRequest("PATCH", url, strings.NewReader(string(jsonHeartBeatRequest)))
-	if err != nil {
-		log.Error("Failed to create PATCH request", slog.String("error", err.Error()))
-	}
+	response := resp.(utils.GeneralResponse)
 
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Error("Failed to send heartbeat to SOL:"+component.SolIP+":"+strconv.Itoa(component.SolPort), slog.String("error", err.Error()))
-		return false
-	}
-	if resp.StatusCode != http.StatusOK {
-		log.Error("Failed to send heartbeat to SOL:"+component.SolIP+":"+strconv.Itoa(component.SolPort)+", Wrong Status: ", slog.Int("status", resp.StatusCode))
+	if response.STATUSCODE != http.StatusOK {
+		log.Error("Failed to send heartbeat to SOL:"+component.SolIP+
+			":"+strconv.Itoa(component.SolPort)+", Wrong Status: ", slog.Int("status", response.STATUSCODE))
 		return false
 	}
 
@@ -280,9 +266,6 @@ func sendHeartBeatToSol(log *slog.Logger) bool {
 
 /*
 Aufgabe 1.3 disconnectFromStar Pflege des Sterns – Abmelden von SOL
-
-Wenn die Komponente, die gerade aktiv den Stern „managed“ (also SOL) den „EXIT“Befehl bekommt, werden von ihr alle
-aktiven Komponenten im Stern einzeln kontaktiert:
 */
 func disconnectFromStar() bool {
 	log.Info("Disconnect From Star")
@@ -309,11 +292,6 @@ func disconnectFromStar() bool {
 
 /*
 disconnectAfterExit 1.2 Pflege des Sterns – Abmelden von SOL
-
-Eine aktive Komponente, die sich nach einem „EXIT“-Befehl bei SOL abmeldet, baut
-eine UNICAST-Verbindung auf. Wenn SOL nicht erreichbar ist, wird es nach 10 bzw. 20
-Sekunden nochmal versucht. Wenn dann immer noch keine Verbindung zustande
-kommt, beendet sich die Komponente selbst.
 */
 func disconnectAfterExit() {
 	ticker := time.NewTicker(10 * time.Second)
@@ -353,7 +331,7 @@ func createMessage(userInput string) {
 		MESSAGE: "",
 	}
 
-	sendMessageToSol(messages)
+	sendMessageToSol(messages, urlSolPraefix+"/vs/v1/messages", "POST")
 }
 
 /*
@@ -378,7 +356,21 @@ func forwardMessage(response con.RestIn) con.RestOut {
 		return con.RestOut{StatusCode: http.StatusUnauthorized}
 	}
 
-	return sendMessageToSol(message)
+	url := urlSolPraefix + "/vs/v1/messages"
+
+	resp := sendMessageToSol(message, url, "POST")
+
+	if reflect.TypeOf(resp) == reflect.TypeOf(con.RestOut{}) {
+		return resp.(con.RestOut)
+	}
+
+	respGeneralRequest := resp.(utils.GeneralResponse)
+
+	if respGeneralRequest.STATUSCODE != http.StatusOK {
+		return con.RestOut{StatusCode: respGeneralRequest.STATUSCODE}
+	}
+
+	return con.RestOut{StatusCode: http.StatusOK, Body: respGeneralRequest.RESPONSEBODY}
 }
 
 /*
@@ -397,24 +389,15 @@ func getListOfAllMessages(response con.RestIn) con.RestOut {
 
 	url := urlSolPraefix + "/vs/v1/messages?star=" + starUuid + "&scope=" + scope + "&view=" + view
 
-	req, err := http.NewRequest("GET", url, nil)
+	resp := sendMessageToSol(nil, url, "GET")
 
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Error("Failed to send Request to SOL with id: "+component.StarUUID+".", slog.String("error", err.Error()))
-		return con.RestOut{StatusCode: http.StatusInternalServerError, Body: gin.H{"error": err.Error()}}
+	if reflect.TypeOf(resp) == reflect.TypeOf(con.RestOut{}) {
+		return resp.(con.RestOut)
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Error("Failed to read response body", slog.String("error", err.Error()))
-		return con.RestOut{StatusCode: http.StatusInternalServerError, Body: gin.H{"error": err.Error()}}
-	}
+	respGeneralRequest := resp.(utils.GeneralResponse)
 
-	var respBody interface{}
-	err = json.Unmarshal(body, &respBody)
-
-	return con.RestOut{StatusCode: http.StatusOK, Body: respBody}
+	return con.RestOut{StatusCode: http.StatusOK, Body: respGeneralRequest.RESPONSEBODY}
 }
 
 /*
@@ -433,38 +416,19 @@ func getMessageByUUID(response con.RestIn) con.RestOut {
 	}
 	url := urlSolPraefix + "/vs/v1/messages/" + msgId + "?star=" + starUuid
 
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		log.Error("Failed to create POST request", slog.String("error", err.Error()))
-		return con.RestOut{StatusCode: http.StatusConflict, Body: gin.H{"error": err.Error()}}
+	resp := sendMessageToSol(nil, url, "GET")
+
+	if reflect.TypeOf(resp) == reflect.TypeOf(con.RestOut{}) {
+		return resp.(con.RestOut)
 	}
 
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Error("Failed to send Request to SOL with id: "+component.StarUUID+".", slog.String("error", err.Error()))
-		return con.RestOut{StatusCode: http.StatusInternalServerError, Body: gin.H{"error": err.Error()}}
+	respGeneralRequest := resp.(utils.GeneralResponse)
+
+	if respGeneralRequest.STATUSCODE != http.StatusOK {
+		return con.RestOut{StatusCode: respGeneralRequest.STATUSCODE}
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Error("Failed to read response body", slog.String("error", err.Error()))
-		return con.RestOut{StatusCode: http.StatusInternalServerError, Body: gin.H{"error": err.Error()}}
-	}
-
-	var respBody interface{}
-	err = json.Unmarshal(body, &respBody)
-
-	if resp.StatusCode == http.StatusUnauthorized {
-		return con.RestOut{StatusCode: http.StatusUnauthorized}
-	}
-	if resp.StatusCode == http.StatusNotFound {
-		return con.RestOut{StatusCode: http.StatusNotFound, Body: respBody}
-	}
-	if resp.StatusCode == http.StatusPreconditionFailed {
-		return con.RestOut{StatusCode: http.StatusPreconditionFailed}
-	}
-
-	return con.RestOut{StatusCode: http.StatusOK, Body: respBody}
+	return con.RestOut{StatusCode: http.StatusOK, Body: respGeneralRequest.RESPONSEBODY}
 }
 
 /*
@@ -482,41 +446,33 @@ func forwardDeletingMessages(request con.RestIn) con.RestOut {
 		request.Context.Param("msgUUID") +
 		"?star=" + request.Context.Query("star")
 
-	req, err := http.NewRequest("DELETE", url, nil)
-	if err != nil {
-		log.Error("Failed to create DELETE request", slog.String("error", err.Error()))
-		return con.RestOut{StatusCode: http.StatusInternalServerError}
+	resp := sendMessageToSol(nil, url, "DELETE")
+
+	if reflect.TypeOf(resp) == reflect.TypeOf(con.RestOut{}) {
+		return resp.(con.RestOut)
 	}
 
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Error("Failed to send DELETE request to SOL: ", slog.String("error", err.Error()))
-		return con.RestOut{StatusCode: http.StatusInternalServerError}
+	respGeneralRequest := resp.(utils.GeneralResponse)
+
+	if respGeneralRequest.STATUSCODE != http.StatusOK {
+		return con.RestOut{StatusCode: respGeneralRequest.STATUSCODE}
 	}
 
-	if resp.StatusCode == http.StatusUnauthorized {
-		return con.RestOut{StatusCode: http.StatusUnauthorized}
-	}
-	if resp.StatusCode == http.StatusNotFound {
-		return con.RestOut{StatusCode: http.StatusNotFound}
-	}
-
-	return con.RestOut{StatusCode: http.StatusOK, Body: resp.Body}
+	return con.RestOut{StatusCode: http.StatusOK, Body: respGeneralRequest.RESPONSEBODY}
 }
 
-func sendMessageToSol(message utils.MessageRequestModel) con.RestOut {
+func sendMessageToSol(message interface{}, url string, requestType string) interface{} {
 	log.Info("Sending Message to SOL")
-	url := urlSolPraefix + "/vs/v1/messages"
 
 	messageToSend, err := json.Marshal(message)
 	if err != nil {
 		log.Error("Error while marshalling data", slog.String("error", err.Error()))
-		return con.RestOut{StatusCode: http.StatusPreconditionFailed, Body: gin.H{"error": "Error while marshalling data"}}
+		return con.RestOut{StatusCode: http.StatusConflict, Body: gin.H{"error": "Error while marshalling data"}}
 	}
 
-	req, err := http.NewRequest("POST", url, strings.NewReader(string(messageToSend)))
+	req, err := http.NewRequest(requestType, url, strings.NewReader(string(messageToSend)))
 	if err != nil {
-		log.Error("Failed to create POST request", slog.String("error", err.Error()))
+		log.Error("Failed to create "+requestType+" request", slog.String("error", err.Error()))
 		return con.RestOut{StatusCode: http.StatusConflict, Body: gin.H{"error": err.Error()}}
 	}
 
@@ -533,19 +489,13 @@ func sendMessageToSol(message utils.MessageRequestModel) con.RestOut {
 		return con.RestOut{StatusCode: http.StatusBadRequest, Body: gin.H{"error": err.Error()}}
 	}
 
-	if resp.StatusCode == http.StatusUnauthorized {
-		return con.RestOut{StatusCode: http.StatusUnauthorized}
-	}
-	if resp.StatusCode == http.StatusNotFound {
-		return con.RestOut{StatusCode: http.StatusNotFound}
-	}
-	if resp.StatusCode == http.StatusPreconditionFailed {
-		return con.RestOut{StatusCode: http.StatusPreconditionFailed}
-	}
-
-	var respBody utils.MessageId
+	var respBody interface{}
 	err = json.Unmarshal(body, &respBody)
-	return con.RestOut{StatusCode: http.StatusOK, Body: respBody}
+
+	return utils.GeneralResponse{
+		STATUSCODE:   resp.StatusCode,
+		RESPONSEBODY: respBody,
+	}
 }
 
 /**

@@ -93,6 +93,11 @@ type MessageListId struct {
 	MESSAGES     []MessageModelId `json:"messages" validate:"required"`
 }
 
+type GeneralResponse struct {
+	STATUSCODE   int         `json:"http-status-code" validate:"required"`
+	RESPONSEBODY interface{} `json:"interface" validate:"required"`
+}
+
 // Validate the ResponseModel struct
 func (r *ResponseModel) Validate() error {
 	validate := validator.New()

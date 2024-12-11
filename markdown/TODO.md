@@ -1,7 +1,7 @@
 # Prio
-- [ ] User Input für Componenten
-- [ ] Fertig Implementierung der Aufgabe 2
-- [ ] Log Files
+- [ X ] User Input für Componenten
+- [ X ] Fertig Implementierung der Aufgabe 2
+- [ X ] Log Files
 - [ ] Überprüfung Aufgabenblatt 1
 - [ ] Durchlesen Aufgabenblatt 2
 

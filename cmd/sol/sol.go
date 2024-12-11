@@ -444,6 +444,8 @@ func getListOfAllMessages(response con.RestIn) con.RestOut {
 	scope := response.Context.Query("scope")
 	view := response.Context.Query("view")
 
+	log.Info("View: " + view)
+
 	if starUuid != sol.StarUUID {
 		return con.RestOut{StatusCode: http.StatusUnauthorized}
 	}
