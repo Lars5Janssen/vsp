@@ -16,8 +16,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/gin-gonic/gin"
-
 	con "github.com/Lars5Janssen/vsp/connection"
 	"github.com/Lars5Janssen/vsp/utils"
 )
@@ -411,7 +409,7 @@ func createAndSaveMessage(response con.RestIn) con.RestOut {
 		STATUS:  "active",
 	}
 
-	body := gin.H{"msg-id": msgId}
+	body := utils.MessageId{MSGID: msgId}
 	return con.RestOut{StatusCode: http.StatusOK, Body: body}
 }
 

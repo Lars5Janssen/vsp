@@ -3,7 +3,7 @@ package component
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"io"
 	"net"
 
 	con "github.com/Lars5Janssen/vsp/connection"
@@ -54,7 +54,7 @@ func StartComponent(
 
 	registerByStar()
 
-	logger.Info("Componenten values",
+	logger.Info("Component values",
 		slog.Int("ComUUID", component.ComUUID),
 		slog.Int("SolUUID", component.SolUUID),
 		slog.String("StarUUID", component.StarUUID),
@@ -368,7 +368,6 @@ func forwardMessage(response con.RestIn) con.RestOut {
 		return con.RestOut{StatusCode: http.StatusBadRequest}
 	}
 
-	log.Info("Subject: " + message.SUBJECT)
 	err = message.Validate() // validierung ueber die json tags siehe models.go
 	if err != nil {
 		return con.RestOut{StatusCode: http.StatusPreconditionFailed}
@@ -453,7 +452,14 @@ func sendMessageToSol(message utils.MessageRequestModel) con.RestOut {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Error("Failed to send Message to SOL with id: "+component.StarUUID+".\n Meaby the star is not reachable anymore.", slog.String("error", err.Error()))
+		log.Error("Failed to send Message to SOL with id: "+component.StarUUID+"."+
+			"\n Maybe the star is not reachable anymore.", slog.String("error", err.Error()))
+		return con.RestOut{StatusCode: http.StatusInternalServerError, Body: gin.H{"error": err.Error()}}
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Error("Failed to read response body", slog.String("error", err.Error()))
 		return con.RestOut{StatusCode: http.StatusInternalServerError, Body: gin.H{"error": err.Error()}}
 	}
 
@@ -467,8 +473,9 @@ func sendMessageToSol(message utils.MessageRequestModel) con.RestOut {
 		return con.RestOut{StatusCode: http.StatusPreconditionFailed}
 	}
 
-	log.Info("Message was successfully sent to SOL. Body = " + fmt.Sprintf("%s", resp.Body))
-	return con.RestOut{StatusCode: http.StatusOK, Body: resp.Body}
+	var respBody utils.MessageId
+	err = json.Unmarshal(body, &respBody)
+	return con.RestOut{StatusCode: http.StatusOK, Body: respBody}
 }
 
 /**

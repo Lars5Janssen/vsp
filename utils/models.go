@@ -68,6 +68,10 @@ type MessageModel struct { // 2.1
 	STATUS  string `json:"status" validate:"required,oneof=active deleted"`
 }
 
+type MessageId struct {
+	MSGID string `json:"msg-id" validate:"required"`
+}
+
 type MessageModelId struct {
 	MSGID  string `json:"msg-id" validate:"required,min=1"`
 	STATUS string `json:"status" validate:"required,oneof=active deleted"`

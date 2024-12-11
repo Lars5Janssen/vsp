@@ -11,9 +11,9 @@ curl -X DELETE http://172:17:0:2:8006/vs/v1/system/1000
 #### Curl for Component
 ```bash
 curl -X POST http://172.17.0.3:8006/vs/v1/messages -H "Content-Type: application/json" -d '{
-"STAR": "9343e3029e602dc3e2336a48b17d3d3c",
-"ORIGIN": "8230",
-"SENDER": "8230",
+"STAR": "8d53fef2a86e54adb855aa7bcd164fdd",
+"ORIGIN": "7060",
+"SENDER": "7060",
 "MSGID": "",
 "VERSION": "",
 "CREATED": "",
