@@ -3,6 +3,7 @@ package component
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
 
 	con "github.com/Lars5Janssen/vsp/connection"
@@ -42,7 +43,7 @@ func StartComponent(
 	restOut chan con.RestOut,
 	response string,
 ) {
-	logger = logger.With(slog.String("Component", "Component"))
+	logger = logger.With(slog.String("LogFrom", "Component"))
 	logger.Info("Starting as Component")
 	log = *logger
 
@@ -360,12 +361,14 @@ forwardMessage nutzt das MessageRequestModel 2.1
 TODO Soll es möglich sein eine Liste von Messages zu übergeben oder nur eine?
 */
 func forwardMessage(response con.RestIn) con.RestOut {
+	log.Info("Forwarding Message to SOL")
 	var message utils.MessageRequestModel
 	err := response.Context.BindJSON(&message)
 	if err != nil {
 		return con.RestOut{StatusCode: http.StatusBadRequest}
 	}
 
+	log.Info("Subject: " + message.SUBJECT)
 	err = message.Validate() // validierung ueber die json tags siehe models.go
 	if err != nil {
 		return con.RestOut{StatusCode: http.StatusPreconditionFailed}
@@ -398,17 +401,17 @@ func getMessageByUUID(response con.RestIn) con.RestOut {
 /*
 2.2: Weiterleiten von DELETE Requests von Komponente an Sol
 */
-func forwardDeletingMessages(response con.RestIn) con.RestOut {
+func forwardDeletingMessages(request con.RestIn) con.RestOut {
 	log.Info("Forwarding DELETE Request to SOL")
 
-	if response.Context.Query("star") != component.StarUUID {
+	if request.Context.Query("star") != component.StarUUID {
 		// TODO Soll schon auf den korrekten Star schon bei der Komponente abgefangen werden?
 		return con.RestOut{StatusCode: http.StatusUnauthorized}
 	}
 
 	url := urlSolPraefix + "/vs/v1/messages/" +
-		response.Context.Param("msgUUID") +
-		"?star=" + response.Context.Query("star")
+		request.Context.Param("msgUUID") +
+		"?star=" + request.Context.Query("star")
 
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
@@ -429,7 +432,7 @@ func forwardDeletingMessages(response con.RestIn) con.RestOut {
 		return con.RestOut{StatusCode: http.StatusNotFound}
 	}
 
-	return con.RestOut{StatusCode: http.StatusOK}
+	return con.RestOut{StatusCode: http.StatusOK, Body: resp.Body}
 }
 
 func sendMessageToSol(message utils.MessageRequestModel) con.RestOut {
@@ -464,8 +467,8 @@ func sendMessageToSol(message utils.MessageRequestModel) con.RestOut {
 		return con.RestOut{StatusCode: http.StatusPreconditionFailed}
 	}
 
-	log.Info("Message was successfully sent to SOL")
-	return con.RestOut{StatusCode: http.StatusOK}
+	log.Info("Message was successfully sent to SOL. Body = " + fmt.Sprintf("%s", resp.Body))
+	return con.RestOut{StatusCode: http.StatusOK, Body: resp.Body}
 }
 
 /**

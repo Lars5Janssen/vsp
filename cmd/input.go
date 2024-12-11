@@ -16,7 +16,7 @@ func StartUserInput(
 	crashFunc context.CancelFunc,
 	crashUdp context.CancelFunc,
 ) {
-	log = log.With(slog.String("Component", "UserInput"))
+	log = log.With(slog.String("LogFrom", "UserInput"))
 
 	scanner := bufio.NewScanner(os.Stdin)
 

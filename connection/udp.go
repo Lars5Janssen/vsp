@@ -15,7 +15,7 @@ type UDP struct {
 }
 
 func SendHello(log *slog.Logger, port int) error {
-	log = log.With(slog.String("Component", "UDP"))
+	log = log.With(slog.String("LogFrom", "UDP"))
 	msg := "HELLO?"
 	err := SendMessage(log, net.UDPAddr{}, port, msg)
 	if err != nil {
@@ -25,7 +25,7 @@ func SendHello(log *slog.Logger, port int) error {
 }
 
 func SendMessage(log *slog.Logger, addr net.UDPAddr, port int, msg string) error {
-	log = log.With(slog.String("Component", "UDP"))
+	log = log.With(slog.String("LogFrom", "UDP"))
 	var conn *net.UDPConn
 	var err error
 	if addr.IP == nil {
@@ -69,7 +69,7 @@ func ListenForBroadcastMessage(
 	port int,
 	channel chan UDP,
 ) {
-	log = log.With(slog.String("Component", "UDP"))
+	log = log.With(slog.String("LogFrom", "UDP"))
 
 	udpServer, err := net.ListenPacket("udp", ":"+strconv.Itoa(port))
 	if err != nil {

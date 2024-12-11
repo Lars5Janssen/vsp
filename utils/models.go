@@ -41,23 +41,15 @@ POST /vs/v1/messages/<MSG-UUID> → gibt es die nummer schon 404
  „changed“ ::= gleicher Zeitstempel wie „created“
 */
 type MessageRequestModel struct { // 2.1
-	STAR   string `json:"star" validate:"required"`
-	ORIGIN string `json:"origin" validate:"required,origin"`
-	// Entweder die COM-UUID die hier eingetragen ist oder der vom Sender
-	// wenn leer => 412
-	SENDER string `json:"sender" validate:"required"`
-	MSGID  string `json:"msg-id"`
-	// setzt dann bei der Speicherung die <MSG-ID> auf einen noch nicht vergebenen Wert.
-	// Die Version einer Nachricht beginnt immer bei „1“.
-	// MSG-UUID := <NUMBER> . „@“ . <COM-UUID> // NUMBER ist ein zähler der Hochgezählt wird.
+	STAR    string `json:"star" validate:"required"`
+	ORIGIN  string `json:"origin" validate:"required,origin"`
+	SENDER  string `json:"sender" validate:"required"`
+	MSGID   string `json:"msg-id"`
 	VERSION string `json:"version"`
-	CREATED string `json:"created"`         // Zeitstempel in UNIX notation
-	CHANGED string `json:"changed"`         // Zeitstempel in UNIX notation
-	SUBJECT string `json:"subject,subject"` // UTF-8 wenn leer => 412
-	// Dieses wird zwar in beliebiger Länge angenommen, aber bei der Weiterverarbeitung
-	// (Weiterleiten, Speicherung, ...) gekürzt, und zwar bis zum ersten NEWLINE-Zeichen
-	// Alle „CARRIAGE RETURN“-Zeichen werden vor der weiteren Verarbeitung aus dem Betreff gelöscht.
-	MESSAGE string `json:"message"` // UTF-8
+	CREATED string `json:"created"`                             // Zeitstempel in UNIX notation
+	CHANGED string `json:"changed"`                             // Zeitstempel in UNIX notation
+	SUBJECT string `json:"subject,subject" validate:"required"` // UTF-8 wenn leer => 412
+	MESSAGE string `json:"message"`                             // UTF-8
 }
 
 /*
@@ -68,7 +60,7 @@ type MessageModel struct { // 2.1
 	STAR    string `json:"star"  validate:"required"`
 	ORIGIN  string `json:"origin"  validate:"required"`
 	SENDER  string `json:"sender"  validate:"required"`
-	VERSION int    `json:"version"  validate:"required,min=1"`
+	VERSION string `json:"version"  validate:"required,min=1"`
 	CREATED string `json:"created"  validate:"required"` // Zeitstempel in UNIX notation
 	CHANGED string `json:"changed"  validate:"required"` // Zeitstempel in UNIX notation
 	SUBJECT string `json:"subject"  validate:"required"`

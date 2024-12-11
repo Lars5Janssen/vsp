@@ -61,7 +61,7 @@ func StartSol(
 	restOut chan con.RestOut,
 ) {
 	log = logger
-	log = log.With(slog.String("Component", "SOL"))
+	log = log.With(slog.String("LogFrom", "SOL"))
 	log.Info("Starting as SOL")
 
 	// SOL Logic
@@ -271,7 +271,7 @@ func checkAvailabilityFromComponent(response con.RestIn) con.RestOut {
 	log.Info("RequestModel",
 		slog.String("Star", registerRequestModel.STAR),
 		slog.String("Sol", strconv.Itoa(registerRequestModel.SOL)),
-		slog.String("Component", strconv.Itoa(registerRequestModel.COMPONENT)),
+		slog.String("LogFrom", strconv.Itoa(registerRequestModel.COMPONENT)),
 		slog.String("ComIP", registerRequestModel.COMIP),
 		slog.String("ComTcp", strconv.Itoa(registerRequestModel.COMTCP)),
 		slog.String("Status", registerRequestModel.STATUS),
@@ -403,7 +403,7 @@ func createAndSaveMessage(response con.RestIn) con.RestOut {
 		STAR:    message.STAR,
 		ORIGIN:  message.ORIGIN,
 		SENDER:  message.SENDER,
-		VERSION: 1,
+		VERSION: "1", // TODO Methode für die versionsgabe
 		CREATED: timestamp,
 		CHANGED: timestamp,
 		SUBJECT: subject,

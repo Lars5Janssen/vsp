@@ -22,7 +22,6 @@ import (
 // TODO Maybe make the TCP channel a map (Endpoint -> gin.Context)
 // TODO Better words to differentiate between components in the program and component as a thing in the networkstructure
 func main() {
-	ip := "127.0.0.1" // nimmt localhost als IP-Adresse
 
 	// Parse command-line arguments
 	port := flag.Int("port", 8006, "Port to run the server on")                     // -port=8006
@@ -50,7 +49,7 @@ func main() {
 
 	/*	log.Info(
 		"Start of program",
-		slog.String("Component", "Main"),
+		slog.String("LogFrom", "Main"),
 		slog.Int("Port", *port),
 		slog.Bool("ReRun?", *rerun),
 		slog.Bool("Sleep?", *sleep),
