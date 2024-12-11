@@ -1,19 +1,19 @@
 services:
   sol:
     build: .
-    entrypoint: app 
+    entrypoint: screen -mS app app 
     environment:
       GIN_MODE: "release"
-    depends_on:
-      - component
     stdin_open: true
     tty: true
     networks:
       vs-network:
+    depends_on:
+      - component
 
   component:
     build: .
-    entrypoint: app -sleep -killSol
+    entrypoint: screen -mS app app -sleep -killSol
     environment:
       GIN_MODE: "release"
     stdin_open: true
