@@ -5,6 +5,5 @@ if test -f "$FILE"; then
     cp /usr/src/app/main /usr/local/bin/app
 else
     echo "found OWN compiled binary" > /app/logs/compile.log
-    ls -la
     go build -v -o /usr/local/bin/app main.go
 fi
