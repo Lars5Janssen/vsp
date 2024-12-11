@@ -278,10 +278,10 @@ func checkAvailabilityFromComponent(response con.RestIn) con.RestOut {
 	)
 
 	// Check if info correct
-	if checkNotFound(registerRequestModel) != http.StatusOK {
-		return con.RestOut{StatusCode: http.StatusNotFound}
-	} else if checkUnauthorized(registerRequestModel) != http.StatusOK {
+	if checkUnauthorized(registerRequestModel) != http.StatusOK {
 		return con.RestOut{StatusCode: http.StatusUnauthorized}
+	} else if checkNotFound(registerRequestModel) != http.StatusOK {
+		return con.RestOut{StatusCode: http.StatusNotFound}
 	} else if checkConflict(registerRequestModel, response.IpAndPort) != http.StatusOK {
 		return con.RestOut{StatusCode: http.StatusConflict}
 	}
@@ -427,7 +427,7 @@ func deleteMessage(response con.RestIn) con.RestOut {
 	} else if msgId == "" {
 		return con.RestOut{StatusCode: http.StatusNotFound}
 	} else if _, exists := msgList[msgId]; !exists {
-		return con.RestOut{http.StatusNotFound, nil}
+		return con.RestOut{StatusCode: http.StatusNotFound}
 	}
 
 	msgList[msgId] = utils.MessageModel{
@@ -507,7 +507,7 @@ func getMessageByUUID(response con.RestIn) con.RestOut {
 	} else if msgId == "" {
 		return con.RestOut{StatusCode: http.StatusNotFound}
 	} else if _, exists := msgList[msgId]; !exists {
-		return con.RestOut{http.StatusNotFound, nil}
+		return con.RestOut{StatusCode: http.StatusNotFound}
 	}
 
 	return con.RestOut{StatusCode: http.StatusOK, Body: msgList[msgId]}

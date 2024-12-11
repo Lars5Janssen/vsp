@@ -85,7 +85,7 @@ func main() {
 	}
 
 	firstRun := true
-	// TODO please refactor too much code in one loop
+	// TODO please refactor, too much code in one loop
 	for *rerun || firstRun {
 		firstRun = false
 
