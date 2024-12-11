@@ -21,8 +21,6 @@ COPY cmd/ ./cmd/
 COPY connection/ ./connection/
 COPY utils/ ./utils/
 COPY --chmod=755 compose_entrypoint.sh dockerbuild.sh mai[n] ./
-COPY --chmod=755 compose_entrypoint.sh dockerbuild.sh ./
-
 
 # Build programm or copy it to /usr/local/bin/ if a precompiled binary has been provided
 RUN go mod download && go mod verify
