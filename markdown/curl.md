@@ -40,7 +40,7 @@ curl -X POST http://172.17.0.2:8006/vs/v1/messages -H "Content-Type: application
 
 #### Curl to Component
 ```bash
- curl -X GET http://172.17.0.3:8006/vs/v1/messages?star=f55998bb998fa316ee82a6dc3245bd42&scope=all&view=id
+ curl -X GET http://172.17.0.3:8006/vs/v1/messages?star=13b327bca6763d08822bb8c159d96da8&scope=all&view=id
 ```
 
 #### Curl to Sol

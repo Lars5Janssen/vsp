@@ -362,6 +362,7 @@ TODO Soll es möglich sein eine Liste von Messages zu übergeben oder nur eine?
 */
 func forwardMessage(response con.RestIn) con.RestOut {
 	log.Info("Forwarding Message to SOL")
+
 	var message utils.MessageRequestModel
 	err := response.Context.BindJSON(&message)
 	if err != nil {
@@ -384,14 +385,44 @@ func forwardMessage(response con.RestIn) con.RestOut {
 Aufgabe 2.3 getListOfAllMessages
 */
 func getListOfAllMessages(response con.RestIn) con.RestOut {
-	body := gin.H{"message": "test"}
-	return con.RestOut{StatusCode: http.StatusOK, Body: body}
+	log.Info("Getting List of all Messages")
+
+	starUuid := response.Context.Query("star")
+	scope := response.Context.Query("scope")
+	view := response.Context.Query("view")
+
+	if starUuid != component.StarUUID {
+		return con.RestOut{StatusCode: http.StatusUnauthorized}
+	}
+
+	url := urlSolPraefix + "/vs/v1/messages?star=" + starUuid + "&scope=" + scope + "&view=" + view
+
+	req, err := http.NewRequest("GET", url, nil)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Error("Failed to send Request to SOL with id: "+component.StarUUID+".", slog.String("error", err.Error()))
+		return con.RestOut{StatusCode: http.StatusInternalServerError, Body: gin.H{"error": err.Error()}}
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Error("Failed to read response body", slog.String("error", err.Error()))
+		return con.RestOut{StatusCode: http.StatusInternalServerError, Body: gin.H{"error": err.Error()}}
+	}
+
+	var respBody interface{}
+	err = json.Unmarshal(body, &respBody)
+
+	return con.RestOut{StatusCode: http.StatusOK, Body: respBody}
 }
 
 /*
 Aufgabe 2.3 getMessageByUUID
 */
 func getMessageByUUID(response con.RestIn) con.RestOut {
+	log.Info("Getting Message by UUID")
+
 	starUuid := response.Context.Query("star")
 	msgId := response.Context.Param("msgUUID")
 
