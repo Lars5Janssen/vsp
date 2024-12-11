@@ -16,7 +16,7 @@ func StartUserInput(
 	crashFunc context.CancelFunc,
 	crashUdp context.CancelFunc,
 ) {
-	log = log.With(slog.String("Component", "UserInput"))
+	log = log.With(slog.String("LogFrom", "UserInput"))
 
 	scanner := bufio.NewScanner(os.Stdin)
 
@@ -37,7 +37,7 @@ func StartUserInput(
 			// channelToMain <- true // Maybe unnecessary, b/c of ctx/CancelFunc/crashFunc
 			crashFunc()
 			crashUdp() // TODO also needs to crash?
-			// os.Exit(-4)
+			os.Exit(-4)
 			return
 		} else if input == "exit" {
 			log.Info("Received exit Command")

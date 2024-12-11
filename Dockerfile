@@ -6,12 +6,19 @@ RUN apt update -y
 RUN apt upgrade -y
 RUN apt install screen -y
 
+# Create the logs directory
+RUN mkdir -p /app/logs
+
+# RUN apt update -y
+# RUN apt upgrade -y
+# RUN apt install iproute2 -y
+
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 
 
 COPY . .
-RUN cp screenrc /etc/screenrc
+RUN cp screenrc /etc/.screenrc
 # RUN go build -v -o /usr/local/bin/app ./main.go
 RUN cp main /usr/local/bin/app
 

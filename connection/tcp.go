@@ -1,4 +1,4 @@
-package net
+package connection
 
 import (
 	"fmt"
@@ -88,7 +88,7 @@ func StartTCPServer(
 	inputChannel chan RestIn,
 	outputChannel chan RestOut,
 ) {
-	log = log.With(slog.String("Component", "TCP"))
+	log = log.With(slog.String("Server", "TCP"))
 
 	router := gin.Default()
 	router.Use(sloggin.New(log))

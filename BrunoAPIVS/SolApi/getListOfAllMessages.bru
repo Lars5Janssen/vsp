@@ -5,13 +5,13 @@ meta {
 }
 
 get {
-  url: {{HttpUrl}}{{Port}}/vs/v1/messages/1?star=<starUUID>&scope=<scope>&info=<info>
+  url: {{solUrl}}{{inputPort}}/vs/v1/messages?star=de08a3af44f644e3c6e1bc91dcf00f83&scope=all&view=header
   body: none
   auth: none
 }
 
 params:query {
-  star: <starUUID>
-  scope: <scope>
-  info: <info>
+  star: de08a3af44f644e3c6e1bc91dcf00f83
+  scope: all
+  view: header
 }

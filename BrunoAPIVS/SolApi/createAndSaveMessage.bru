@@ -5,20 +5,20 @@ meta {
 }
 
 post {
-  url: {{HttpUrl}}{{Port}}/vs/v1/messages/1
+  url: {{HttpUrl}}{{Port}}/vs/v1/messages
   body: json
   auth: none
 }
 
 body:json {
   {
-    "STAR": "StarUUID",
-    "ORIGIN": "COM-UUID | EMAIL",
-    "SENDER": "SENDER-UUID",
-    "MSGID": "MSG-UUID",
-    "VERSION": "'1' | ''",
-    "CREATED": "TIMESTAMP",
-    "SUBJECT": "STRING |UTF-8",
-    "MESSAGE": "STRING | UTF-8"
+    "STAR": "testStarUUID",
+    "ORIGIN": "msg@you.com",
+    "SENDER": "1000",
+    "MSGID": "",
+    "VERSION": "",
+    "CREATED": "",
+    "SUBJECT": "test",
+    "MESSAGE": "Dies ist ein Test, den ich performe. Mal gucken, ob ich so eine lange Nachricht schreiben darf."
   }
 }

@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/Lars5Janssen/vsp/cmd"
-	"github.com/Lars5Janssen/vsp/net"
+	"github.com/Lars5Janssen/vsp/cmd/component"
+	"github.com/Lars5Janssen/vsp/cmd/sol"
+	con "github.com/Lars5Janssen/vsp/connection"
 )
 
 // TODO better logging currently all is manually set = bad (component string in every file but main.go)
@@ -20,7 +22,6 @@ import (
 // TODO Maybe make the TCP channel a map (Endpoint -> gin.Context)
 // TODO Better words to differentiate between components in the program and component as a thing in the networkstructure
 func main() {
-	ip := "127.0.0.1" // nimmt localhost als IP-Adresse
 
 	// Parse command-line arguments
 	port := flag.Int("port", 8006, "Port to run the server on")                     // -port=8006
@@ -32,32 +33,50 @@ func main() {
 	flag.Parse()
 
 	// Logger
+	// Open or create a log file
+	fileName := "/app/logs/app.log"
+	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		fmt.Printf("Failed to open log file: %v\n", err)
+	}
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			fmt.Printf("Failed to close log file: %v\n", err)
+		}
+	}(file)
+
+	// Set up log
 	lvl := new(slog.LevelVar)
-	lvl.Set(slog.LevelInfo)
-	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+	lvl.Set(slog.LevelDebug)
+	log := slog.New(slog.NewTextHandler(file, &slog.HandlerOptions{
 		Level: lvl,
 	}))
 
-	// fmt.Println(string(cmdOut))
-	adLs, _ := n.InterfaceAddrs()
-	fmt.Println(adLs[1])
+	// Relevant um IPV6 zu IPV4 zu konvertieren, da andere Geräte in der Regel IPV6 schicken.
+	ip, err := getFirstIPv4Addr()
+	if err != nil {
+		fmt.Println("Error:", err)
+	} else {
+		fmt.Println("First IPv4 Address:", ip)
+	}
 
-	log.Info(
+	/*	log.Info(
 		"Start of program",
-		slog.String("Component", "Main"),
+		slog.String("LogFrom", "Main"),
 		slog.Int("Port", *port),
 		slog.Bool("ReRun?", *rerun),
 		slog.Bool("Sleep?", *sleep),
 		slog.Bool("killSol?", *stopIfSol),
 		slog.Int("MaxActiveComponents", *maxActiveComponents),
-	)
+	)*/
 
 	// Channels, Contexts & WaitGroup (Thread Stuff)
 	// Channels:
 	inputWorker := make(chan string)    // Input -> Worker
-	udpMainSol := make(chan net.UDP, 1) // UDP -> SOL/Main
-	restIn := make(chan net.RestIn)
-	restOut := make(chan net.RestOut)
+	udpMainSol := make(chan con.UDP, 1) // UDP -> SOL/Main
+	restIn := make(chan con.RestIn)
+	restOut := make(chan con.RestOut)
 	var wg sync.WaitGroup
 
 	// Contexts:
@@ -70,18 +89,22 @@ func main() {
 
 	go cmd.StartUserInput(log, inputWorker, workerCancel, udpCancel)
 
+	/* Nur um organisch zwei Docker Container auf sol und component zuzuteilen.
+	Ist die Flag hierzu gesetzt tendiert der Container dazu Component zu werden. */
 	if *sleep {
 		sleepTime := 5
 		log.Info(fmt.Sprintf("Sleep flag was set. Waiting %v Seconds", sleepTime))
 		time.Sleep(time.Duration(sleepTime) * time.Second)
 	}
+
 	firstRun := true
+	// TODO please refactor, too much code in one loop
 	for *rerun || firstRun {
 		firstRun = false
 
-		go net.ListenForBroadcastMessage(log, *port, udpMainSol) // udpCTX?
+		go con.ListenForBroadcastMessage(log, *port, udpMainSol) // udpCTX?
 
-		var response net.UDP
+		var response con.UDP
 		noMessage := true
 
 		// TODO Timeout verstellbar machen
@@ -89,7 +112,7 @@ func main() {
 			if !noMessage {
 				continue
 			}
-			err := net.SendHello(log, *port)
+			err := con.SendHello(log, *port)
 			if err != nil {
 				log.Error("Could not Send Hello")
 				return
@@ -99,18 +122,19 @@ func main() {
 
 			if len(udpMainSol) == cap(udpMainSol) {
 				noMessage = false
+				response = <-udpMainSol
 			} else {
-				log.Debug("No UDP message recived, timing out")
+				log.Debug("No UDP message received, timing out")
 			}
 		}
 
 		if noMessage && !*stopIfSol {
 			log.Info("Starting as Sol")
 			wg.Add(1)
-			go net.StartTCPServer(log, ip, *port, cmd.GetSolEndpoints(), restIn, restOut)
+			go con.StartTCPServer(log, ip, *port, sol.GetSolEndpoints(), restIn, restOut)
 			go func() {
 				defer wg.Done()
-				cmd.StartSol(workerCTX, log, inputWorker, udpMainSol, restIn, restOut)
+				sol.StartSol(workerCTX, log, inputWorker, udpMainSol, restIn, restOut)
 			}()
 		} else if noMessage && *stopIfSol {
 			log.Info("Would be sol, but flag is set, stopping")
@@ -118,10 +142,10 @@ func main() {
 			log.Info("Starting as Component")
 			udpCancel()
 			wg.Add(1)
-			go net.StartTCPServer(log, ip, *port, cmd.GetComponentEndpoints(), restIn, restOut)
+			go con.StartTCPServer(log, ip, *port, component.GetComponentEndpoints(), restIn, restOut)
 			go func() {
 				defer wg.Done()
-				cmd.StartComponent(workerCTX, log, inputWorker, restIn, restOut, response.Message)
+				component.StartComponent(workerCTX, log, inputWorker, restIn, restOut, response.Message)
 			}()
 		}
 		wg.Wait()
@@ -129,4 +153,20 @@ func main() {
 
 	log.Info("Exiting")
 	os.Exit(0)
+}
+
+func getFirstIPv4Addr() (string, error) {
+	addrs, err := n.InterfaceAddrs()
+	if err != nil {
+		return "", err
+	}
+
+	for _, addr := range addrs {
+		if ipNet, ok := addr.(*n.IPNet); ok && !ipNet.IP.IsLoopback() {
+			if ipNet.IP.To4() != nil { // && ipNet.Mask.String() == "ffffff00"
+				return ipNet.IP.String(), nil
+			}
+		}
+	}
+	return "", fmt.Errorf("no IPv4 address found")
 }
