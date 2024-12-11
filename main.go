@@ -83,7 +83,6 @@ func main() {
 	_, udpCancel := context.WithCancel(context.Background())
 	workerCTX, workerCancel := context.WithCancel(context.Background())
 
-	/*	go net.StartTCPServer(log, *port, cmd.GetComponentEndpoints(), restIn, restOut)*/
 	workerCTX = context.WithValue(workerCTX, "ip", ip)
 	workerCTX = context.WithValue(workerCTX, "port", *port)
 	workerCTX = context.WithValue(workerCTX, "maxActiveComponents", *maxActiveComponents)
