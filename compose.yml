@@ -1,19 +1,17 @@
 services:
   sol:
     build: .
-    entrypoint: screen -mS app app 
+    entrypoint: /usr/src/app/compose_entrypoint.sh
     environment:
       GIN_MODE: "release"
     stdin_open: true
     tty: true
     networks:
       vs-network:
-    depends_on:
-      - component
 
   component:
     build: .
-    entrypoint: screen -mS app app -sleep -killSol
+    entrypoint: /usr/src/app/compose_entrypoint.sh NotSol
     environment:
       GIN_MODE: "release"
     stdin_open: true
