@@ -164,7 +164,10 @@ func getFirstIPv4Addr() (string, error) {
 	for _, addr := range addrs {
 		if ipNet, ok := addr.(*n.IPNet); ok && !ipNet.IP.IsLoopback() {
 			if ipNet.IP.To4() != nil { // && ipNet.Mask.String() == "ffffff00"
-				return ipNet.IP.String(), nil
+				ones, _ := ipNet.Mask.Size()
+				if ones >= 24 {
+					return ipNet.IP.String(), nil
+				}
 			}
 		}
 	}
