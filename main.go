@@ -34,7 +34,7 @@ func main() {
 
 	// Logger
 	// Open or create a log file
-	fileName := "/app/logs/app.log"
+	fileName := "./app/logs/app.log"
 	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		fmt.Printf("Failed to open log file: %v\n", err)

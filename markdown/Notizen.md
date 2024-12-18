@@ -14,12 +14,8 @@ JSON zu nutzen
 
 [HTTP Endpoint tester](https://www.usebruno.com/) HUND!
 
-# TODO
-
-- [ ] Gin nutzen
-- [ ] Auf slog umstellen!
-- [ ] Refactor?
-- [ ] Workspaces/Go module structure?
+# cmd um live logs zu verfolgen
+tail -f ./app.log
 
 # Generell
 
