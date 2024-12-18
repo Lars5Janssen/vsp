@@ -326,13 +326,13 @@ Eine aktive Komponente, die sich nach einem „EXIT“-Befehl bei SOL abmeldet, 
 Wenn SOL nicht erreichbar ist, wird es nach 10 bzw. 20 Sekunden nochmal versucht. Wenn dann immer noch keine Verbindung
 zustande kommt, beendet sich die Komponente selbst.
 */
-func disconnectComponentFromStar(response con.RestIn) con.RestOut {
+func disconnectComponentFromStar(request con.RestIn) con.RestOut {
 	// TODO check if component is already deleted
 	var out con.RestOut
 	var registerRequestModel utils.RequestModel
 
-	registerRequestModel.STAR = response.Context.Query("star")
-	stringValue := response.Context.Param("comUUID")
+	registerRequestModel.STAR = request.Context.Query("star")
+	stringValue := request.Context.Param("comUUID")
 	comUUid, err := strconv.Atoi(stringValue)
 	if err != nil {
 		out.StatusCode = http.StatusBadRequest
@@ -368,10 +368,10 @@ func disconnectComponentFromStar(response con.RestIn) con.RestOut {
 /*
 createAndSaveMessage Aufgabe 2.1
 */
-func createAndSaveMessage(response con.RestIn) con.RestOut {
+func createAndSaveMessage(request con.RestIn) con.RestOut {
 	// TODO warum soll SOL eine Sonderbehandlung bekommen?
 	var message utils.MessageRequestModel
-	err := response.Context.ShouldBindJSON(&message)
+	err := request.Context.ShouldBindJSON(&message)
 	if err != nil {
 		return con.RestOut{StatusCode: http.StatusBadRequest}
 	}
@@ -416,9 +416,9 @@ func createAndSaveMessage(response con.RestIn) con.RestOut {
 /*
 deleteMessage Aufgabe 2.2
 */
-func deleteMessage(response con.RestIn) con.RestOut {
-	starUuid := response.Context.Query("star")
-	msgId := response.Context.Param("msgUUID")
+func deleteMessage(request con.RestIn) con.RestOut {
+	starUuid := request.Context.Query("star")
+	msgId := request.Context.Param("msgUUID")
 
 	if starUuid != sol.StarUUID {
 		return con.RestOut{StatusCode: http.StatusUnauthorized}
@@ -496,9 +496,9 @@ func getListOfAllMessages(request con.RestIn) con.RestOut {
 /*
 Aufgabe 2.3 getMessageByUUID
 */
-func getMessageByUUID(response con.RestIn) con.RestOut {
-	starUuid := response.Context.Query("star")
-	msgId := response.Context.Param("msgUUID")
+func getMessageByUUID(request con.RestIn) con.RestOut {
+	starUuid := request.Context.Query("star")
+	msgId := request.Context.Param("msgUUID")
 
 	if starUuid != sol.StarUUID {
 		return con.RestOut{StatusCode: http.StatusUnauthorized}
