@@ -439,12 +439,10 @@ func deleteMessage(response con.RestIn) con.RestOut {
 /*
 Aufgabe 2.3 getListOfAllMessages
 */
-func getListOfAllMessages(response con.RestIn) con.RestOut {
-	starUuid := response.Context.Query("star")
-	scope := response.Context.Query("scope")
-	view := response.Context.Query("view")
-
-	log.Info("View: " + view)
+func getListOfAllMessages(request con.RestIn) con.RestOut {
+	starUuid := request.Context.Query("star")
+	scope := request.Context.Query("scope")
+	view := request.Context.Query("view")
 
 	if starUuid != sol.StarUUID {
 		return con.RestOut{StatusCode: http.StatusUnauthorized}
@@ -508,7 +506,7 @@ func getMessageByUUID(response con.RestIn) con.RestOut {
 		return con.RestOut{StatusCode: http.StatusNotFound}
 		// Dennoch rückgabe leere Liste
 		// Auch wenn die <MSG-UUID> nicht existiert, wird
-		//eine leere Liste zurückgegeben und die Antwort „404“.
+		// eine leere Liste zurückgegeben und die Antwort „404“.
 	} else if _, exists := msgList[msgId]; !exists {
 		return con.RestOut{StatusCode: http.StatusNotFound}
 	}

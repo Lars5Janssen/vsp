@@ -1,4 +1,5 @@
 #!/bin/bash
+
 FILE=/usr/src/app/main
 if test -f "$FILE"; then
     echo "found PREcompiled binary" > /app/logs/compile.log

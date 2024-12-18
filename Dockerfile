@@ -24,7 +24,7 @@ COPY --chmod=755 compose_entrypoint.sh dockerbuild.sh mai[n] ./
 
 # Build programm or copy it to /usr/local/bin/ if a precompiled binary has been provided
 RUN go mod download && go mod verify
-RUN ./dockerbuild.sh
+RUN . /usr/src/app/dockerbuild.sh
 
 # Configure Environment
 EXPOSE 8006
