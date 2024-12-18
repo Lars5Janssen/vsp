@@ -101,7 +101,6 @@ func StartTCPServer(
 					ipAndPort := c.Request.RemoteAddr
 					inputChannel <- RestIn{vv, ipAndPort, c}
 					o := <-outputChannel
-					// TODO use plaintext for some requests
 					c.JSON(o.StatusCode, o.Body)
 				}
 
