@@ -71,11 +71,11 @@ func StartComponent(
 		for runComponentThread {
 			select {
 			case <-ticker.C:
-				if !sendHeartBeatToSol(logger) {
+				if !sendHeartBeatToSol() {
 					time.Sleep(10 * time.Second)
-					if !sendHeartBeatToSol(logger) {
+					if !sendHeartBeatToSol() {
 						time.Sleep(20 * time.Second)
-						if !sendHeartBeatToSol(logger) {
+						if !sendHeartBeatToSol() {
 							logger.Error("Failed to send heartbeat to SOL three time. Exiting Component")
 							setRunComponentThread(false)
 						}
@@ -97,6 +97,8 @@ func StartComponent(
 		default:
 		}
 	}
+
+	// TODO Muss man hier noch aufräumen? Context leeren oder so?
 }
 
 type Component struct {
@@ -232,7 +234,7 @@ func sendHeartBeatBackToSol(response con.RestIn) con.RestOut {
 	return con.RestOut{StatusCode: http.StatusOK, Body: model}
 }
 
-func sendHeartBeatToSol(log *slog.Logger) bool {
+func sendHeartBeatToSol() bool {
 	log.Info("Sending Heartbeat to SOL")
 	url := urlSolPraefix + "/vs/v1/system/" + strconv.Itoa(component.ComUUID)
 
@@ -276,18 +278,21 @@ func disconnectFromStar() bool {
 		log.Error("Failed to create DELETE request", slog.String("error", err.Error()))
 	}
 
-	// LOOP for Time meaby here?
-	_, err = client.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		log.Error("Failed to send request to SOL: ", slog.String("error", err.Error()))
 		/*
 			Die sich abmeldende Komponente beendet sich selbst, auch bei einem Statuscode, der
 			einen Fehler signalisiert. - Zitat aus der Aufgabe 1.3
 		*/
-		setRunComponentThread(false)
-		return true
+		return false
 	}
-	return false
+
+	if resp.StatusCode != http.StatusOK {
+		log.Error("Failed to send request to SOL: ", slog.String("StatusCode", resp.Status))
+		return false
+	}
+	return true
 }
 
 /*
@@ -296,24 +301,24 @@ disconnectAfterExit 1.2 Pflege des Sterns – Abmelden von SOL
 func disconnectAfterExit() {
 	ticker := time.NewTicker(10 * time.Second)
 
-	go func() {
-		for runComponentThread {
-			select {
-			case <-ticker.C:
+	for runComponentThread {
+		select {
+		case <-ticker.C:
+			if !disconnectFromStar() {
+				log.Error("Failed to disconnect from star. Star not reachable. Try it again")
+				time.Sleep(10 * time.Second)
 				if !disconnectFromStar() {
-					log.Error("Failed to disconnect from star")
-					time.Sleep(10 * time.Second)
+					log.Error("Failed to disconnect from star. Star not reachable. Try it again")
+					time.Sleep(20 * time.Second)
 					if !disconnectFromStar() {
-						time.Sleep(20 * time.Second)
-						if !disconnectFromStar() {
-							log.Error("Failed to disconnect from star three time. Exiting Component")
-							setRunComponentThread(false)
-						}
+						log.Error("Failed to disconnect from star three time. Exiting Component")
+						setRunComponentThread(false)
 					}
+					setRunComponentThread(true)
 				}
 			}
 		}
-	}()
+	}
 }
 
 // TODO Diese Methode soll nur eine Message auf Basis der Eingaben des Users erstellen?
@@ -512,4 +517,5 @@ func iAmNotSol(_ con.RestIn) con.RestOut {
 
 func setRunComponentThread(value bool) {
 	runComponentThread = value
+	log.Info("Flag to terminate the Component is set.")
 }
