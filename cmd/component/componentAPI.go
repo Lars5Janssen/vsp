@@ -22,7 +22,7 @@ var endpoints = []con.Endpoint{
 		AcceptedMethods: map[con.Method]con.Handler{
 			con.PATCH:  iAmNotSol, // unauthorized
 			con.GET:    sendHeartBeatBackToSol,
-			con.DELETE: iAmNotSol, // unauthorized
+			con.DELETE: disconnectFromStar, // unauthorized, when star is not right
 		},
 	},
 	/*{

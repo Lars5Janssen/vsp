@@ -267,9 +267,46 @@ func sendHeartBeatToSol() bool {
 }
 
 /*
-Aufgabe 1.3 disconnectFromStar Pflege des Sterns – Abmelden von SOL
+*
+disconnectFromStar 1.3 Pflege des Sterns – Abmelden von SOL nach Aufruf von SOL
 */
-func disconnectFromStar() bool {
+func disconnectFromStar(response con.RestIn) con.RestOut {
+	log.Info("Disconnecting from Star")
+
+	if response.Context.Query("star") != component.StarUUID {
+		return con.RestOut{StatusCode: http.StatusUnauthorized}
+	}
+
+	return con.RestOut{StatusCode: http.StatusOK}
+}
+
+/*
+disconnectAfterExit 1.2 Pflege des Sterns – Abmelden von SOL
+*/
+func disconnectAfterExit() {
+	ticker := time.NewTicker(10 * time.Second)
+
+	for runComponentThread {
+		select {
+		case <-ticker.C:
+			if !disconnectAfterExitHelper() {
+				log.Error("Failed to disconnect from star. Star not reachable. Try it again")
+				time.Sleep(10 * time.Second)
+				if !disconnectAfterExitHelper() {
+					log.Error("Failed to disconnect from star. Star not reachable. Try it again")
+					time.Sleep(20 * time.Second)
+					if !disconnectAfterExitHelper() {
+						log.Error("Failed to disconnect from star three time. Exiting Component")
+						setRunComponentThread(false)
+					}
+					setRunComponentThread(true)
+				}
+			}
+		}
+	}
+}
+
+func disconnectAfterExitHelper() bool {
 	log.Info("Disconnect From Star")
 	url := urlSolPraefix + "/vs/v1/system/" + strconv.Itoa(component.ComUUID) + "?star=" + component.StarUUID
 
@@ -295,32 +332,6 @@ func disconnectFromStar() bool {
 	return true
 }
 
-/*
-disconnectAfterExit 1.2 Pflege des Sterns – Abmelden von SOL
-*/
-func disconnectAfterExit() {
-	ticker := time.NewTicker(10 * time.Second)
-
-	for runComponentThread {
-		select {
-		case <-ticker.C:
-			if !disconnectFromStar() {
-				log.Error("Failed to disconnect from star. Star not reachable. Try it again")
-				time.Sleep(10 * time.Second)
-				if !disconnectFromStar() {
-					log.Error("Failed to disconnect from star. Star not reachable. Try it again")
-					time.Sleep(20 * time.Second)
-					if !disconnectFromStar() {
-						log.Error("Failed to disconnect from star three time. Exiting Component")
-						setRunComponentThread(false)
-					}
-					setRunComponentThread(true)
-				}
-			}
-		}
-	}
-}
-
 // TODO Diese Methode soll nur eine Message auf Basis der Eingaben des Users erstellen?
 // TODO not implemented yet
 func createMessage(userInput string) {
@@ -341,7 +352,6 @@ func createMessage(userInput string) {
 
 /*
 forwardMessage nutzt das MessageRequestModel 2.1
-TODO Soll es möglich sein eine Liste von Messages zu übergeben oder nur eine?
 */
 func forwardMessage(response con.RestIn) con.RestOut {
 	log.Info("Forwarding Message to SOL")

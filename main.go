@@ -34,7 +34,7 @@ func main() {
 
 	// Logger
 	// Open or create a log file
-	fileName := "./app/logs/app.log"
+	fileName := "/app/logs/app.log"
 	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		fmt.Printf("Failed to open log file: %v\n", err)
@@ -161,15 +161,25 @@ func getFirstIPv4Addr() (string, error) {
 		return "", err
 	}
 
+	var fallbackAddr string
 	for _, addr := range addrs {
 		if ipNet, ok := addr.(*n.IPNet); ok && !ipNet.IP.IsLoopback() {
-			if ipNet.IP.To4() != nil { // && ipNet.Mask.String() == "ffffff00"
-				ones, _ := ipNet.Mask.Size()
+			if ipNet.IP.To4() != nil {
+				ones, _ := ipNet.Mask.Size() // if there is an address with a subnet of 24 or more, prefer that
+
 				if ones >= 24 {
 					return ipNet.IP.String(), nil
+				}
+
+				if fallbackAddr == "" {
+					fallbackAddr = ipNet.IP.String()
 				}
 			}
 		}
 	}
+	if fallbackAddr != "" {
+		return fallbackAddr, nil
+	}
+
 	return "", fmt.Errorf("no IPv4 address found")
 }
