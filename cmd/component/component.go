@@ -299,9 +299,9 @@ func disconnectAfterExit() {
 						log.Error("Failed to disconnect from star three time. Exiting Component")
 						setRunComponentThread(false)
 					}
-					setRunComponentThread(true)
 				}
 			}
+			setRunComponentThread(false)
 		}
 	}
 }
@@ -313,6 +313,7 @@ func disconnectAfterExitHelper() bool {
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
 		log.Error("Failed to create DELETE request", slog.String("error", err.Error()))
+		return false
 	}
 
 	resp, err := client.Do(req)
