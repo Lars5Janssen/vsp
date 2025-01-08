@@ -1,0 +1,18 @@
+services:
+  sol:
+    build: .
+    entrypoint: /usr/src/app/compose_entrypoint.sh
+    tty: true
+    networks:
+      vs-network:
+
+  component:
+    build: .
+    entrypoint: /usr/src/app/compose_entrypoint.sh NotSol
+    tty: true
+    networks:
+      vs-network:
+
+networks:
+  vs-network:
+    external: false

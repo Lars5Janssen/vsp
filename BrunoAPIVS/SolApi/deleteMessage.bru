@@ -5,11 +5,11 @@ meta {
 }
 
 delete {
-  url: {{HttpUrl}}{{Port}}/vs/v1/messages/1?star=1
+  url: {{HttpUrl}}{{Port}}/vs/v1/messages/1@1000?star=testStarUUID
   body: none
   auth: none
 }
 
 params:query {
-  star: 1
+  star: testStarUUID
 }
