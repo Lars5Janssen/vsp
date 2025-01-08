@@ -25,14 +25,6 @@ var endpoints = []con.Endpoint{
 			con.DELETE: disconnectFromStar, // unauthorized, when star is not right
 		},
 	},
-	/*{
-		Name: []string{"/vs/v1/system/:comUUID?star=starUUID"}, // TODO :starUUID muss definiert werden
-		AcceptedMethods: map[con.Method]con.Handler{
-			con.GET: sendHeartBeatBackToSol,
-			// Endpunkt fuer Sol meldet sich von Stern ab
-			con.DELETE: iAmNotSol, // unauthorized
-		},
-	},*/
 	{
 		// ?star=starUUID&scope=scope&view=view
 		// sind query's die der Client mitschickt welche dann herausgefiltert werden
@@ -51,10 +43,4 @@ var endpoints = []con.Endpoint{
 			con.GET:    getMessageByUUID,
 		},
 	},
-	/*{
-		Name: []string{"/vs/v1/messages?star=starUUID&scope=scope&view=view"},
-		AcceptedMethods: map[con.Method]con.Handler{
-			con.GET: notAvailable,
-		},
-	},*/
 }

@@ -25,14 +25,6 @@ var solEndpoints = []con.Endpoint{
 			con.DELETE: disconnectComponentFromStar,
 		},
 	},
-	/*{
-		Name: []string{"/vs/v1/system/:comUUID?star=starUUID"},
-		AcceptedMethods: map[con.Method]con.Handler{
-			con.GET: sendHeartBeatBack,
-			// Endpunkt fuer Komponente meldet sich von Stern ab
-			con.DELETE: disconnectComponentFromStar, // Exit befehl von einer Komponente
-		},
-	},*/
 	{
 		// ?star=starUUID&scope=scope&view=view
 		// sind query's die der Client mitschickt welche dann herausgefiltert werden
@@ -51,10 +43,4 @@ var solEndpoints = []con.Endpoint{
 			con.DELETE: deleteMessage,
 		},
 	},
-	/*{
-		Name: []string{"/vs/v1/messages?star=starUUID&scope=scope&view=view"},
-		AcceptedMethods: map[con.Method]con.Handler{
-			con.GET: getListOfAllMessages,
-		},
-	},*/
 }

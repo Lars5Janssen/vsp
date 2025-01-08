@@ -333,8 +333,6 @@ func disconnectAfterExitHelper() bool {
 	return true
 }
 
-// TODO Diese Methode soll nur eine Message auf Basis der Eingaben des Users erstellen?
-// TODO not implemented yet
 func createMessage(userInput string) {
 	messages := utils.MessageRequestModel{
 		STAR:    "",
@@ -517,10 +515,6 @@ func sendMessageToSol(message interface{}, url string, requestType string) inter
 /**
 	Helper Methods
  **/
-
-func notAvailable(_ con.RestIn) con.RestOut {
-	return con.RestOut{StatusCode: http.StatusNotFound}
-}
 
 func iAmNotSol(_ con.RestIn) con.RestOut {
 	return con.RestOut{StatusCode: http.StatusUnauthorized}
