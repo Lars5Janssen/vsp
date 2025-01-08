@@ -34,7 +34,7 @@ func main() {
 
 	// Logger
 	// Open or create a log file
-	fileName := "/app/logs/app.log"
+	fileName := "./app/logs/app.log"
 	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		fmt.Printf("Failed to open log file: %v\n", err)
@@ -60,16 +60,6 @@ func main() {
 	} else {
 		fmt.Println("First IPv4 Address:", ip)
 	}
-
-	/*	log.Info(
-		"Start of program",
-		slog.String("LogFrom", "Main"),
-		slog.Int("Port", *port),
-		slog.Bool("ReRun?", *rerun),
-		slog.Bool("Sleep?", *sleep),
-		slog.Bool("killSol?", *stopIfSol),
-		slog.Int("MaxActiveComponents", *maxActiveComponents),
-	)*/
 
 	// Channels, Contexts & WaitGroup (Thread Stuff)
 	// Channels:
