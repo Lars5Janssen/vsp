@@ -61,16 +61,6 @@ func main() {
 		fmt.Println("First IPv4 Address:", ip)
 	}
 
-	/*	log.Info(
-		"Start of program",
-		slog.String("LogFrom", "Main"),
-		slog.Int("Port", *port),
-		slog.Bool("ReRun?", *rerun),
-		slog.Bool("Sleep?", *sleep),
-		slog.Bool("killSol?", *stopIfSol),
-		slog.Int("MaxActiveComponents", *maxActiveComponents),
-	)*/
-
 	// Channels, Contexts & WaitGroup (Thread Stuff)
 	// Channels:
 	inputWorker := make(chan string)    // Input -> Worker

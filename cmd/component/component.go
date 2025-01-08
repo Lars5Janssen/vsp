@@ -3,6 +3,7 @@ package component
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"reflect"
@@ -192,6 +193,7 @@ func registerByStar() {
 	switch respGeneralRequest.STATUSCODE {
 	case http.StatusOK:
 		log.Info("Successfully registered by Sol")
+		fmt.Printf("Sucessfully registered by Sol with id: %d \n", component.ComUUID)
 		return
 	case http.StatusUnauthorized:
 		log.Error("Unauthorized to register by Sol")
@@ -230,7 +232,7 @@ func sendHeartBeatBackToSol(response con.RestIn) con.RestOut {
 	if comUUID != "" || comUUID != strconv.Itoa(component.ComUUID) {
 		return con.RestOut{StatusCode: http.StatusUnauthorized}
 	}
-
+	fmt.Printf("Sending HeartBeatBackToSol\n")
 	return con.RestOut{StatusCode: http.StatusOK, Body: model}
 }
 
@@ -262,7 +264,7 @@ func sendHeartBeatToSol() bool {
 			":"+strconv.Itoa(component.SolPort)+", Wrong Status: ", slog.Int("status", response.STATUSCODE))
 		return false
 	}
-
+	fmt.Printf("Sending Heartbeat to Sol. Sol Id: %d \n", component.SolUUID)
 	return true
 }
 
@@ -271,12 +273,12 @@ func sendHeartBeatToSol() bool {
 disconnectFromStar 1.3 Pflege des Sterns – Abmelden von SOL nach Aufruf von SOL
 */
 func disconnectFromStar(response con.RestIn) con.RestOut {
-	log.Info("Disconnecting from Star")
-
 	if response.Context.Query("star") != component.StarUUID {
 		return con.RestOut{StatusCode: http.StatusUnauthorized}
 	}
 
+	log.Info("Disconnecting from Star")
+	fmt.Printf("Disconnecting from Star after request from Sol.\n")
 	return con.RestOut{StatusCode: http.StatusOK}
 }
 
@@ -290,13 +292,16 @@ func disconnectAfterExit() {
 		select {
 		case <-ticker.C:
 			if !disconnectAfterExitHelper() {
-				log.Error("Failed to disconnect from star. Star not reachable. Try it again")
+				log.Error("Failed to disconnect from Star. Star not reachable. Try it again")
+				fmt.Printf("Failed to disconnect from Star. Star not reachable. Try it again\n")
 				time.Sleep(10 * time.Second)
 				if !disconnectAfterExitHelper() {
-					log.Error("Failed to disconnect from star. Star not reachable. Try it again")
+					log.Error("Failed to disconnect from Star. Star not reachable. Try it again")
+					fmt.Printf("Failed to disconnect from Star. Star not reachable. Try it again \n")
 					time.Sleep(20 * time.Second)
 					if !disconnectAfterExitHelper() {
-						log.Error("Failed to disconnect from star three time. Exiting Component")
+						log.Error("Failed to disconnect from Star three time. Exiting Component")
+						fmt.Printf("Failed to disconnect from Star. Star not reachable. Try it again \n")
 						setRunComponentThread(false)
 					}
 				}
@@ -307,7 +312,7 @@ func disconnectAfterExit() {
 }
 
 func disconnectAfterExitHelper() bool {
-	log.Info("Disconnect From Star")
+	log.Info("Disconnect from Star")
 	url := urlSolPraefix + "/vs/v1/system/" + strconv.Itoa(component.ComUUID) + "?star=" + component.StarUUID
 
 	req, err := http.NewRequest("DELETE", url, nil)
@@ -318,7 +323,7 @@ func disconnectAfterExitHelper() bool {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Error("Failed to send request to SOL: ", slog.String("error", err.Error()))
+		log.Error("Failed to send request to Star: ", slog.String("error", err.Error()))
 		/*
 			Die sich abmeldende Komponente beendet sich selbst, auch bei einem Statuscode, der
 			einen Fehler signalisiert. - Zitat aus der Aufgabe 1.3
@@ -327,9 +332,10 @@ func disconnectAfterExitHelper() bool {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		log.Error("Failed to send request to SOL: ", slog.String("StatusCode", resp.Status))
+		log.Error("Failed to send request to Star: ", slog.String("StatusCode", resp.Status))
 		return false
 	}
+	fmt.Printf("Disconnect after exit.")
 	return true
 }
 
@@ -353,7 +359,7 @@ func createMessage(userInput string) {
 forwardMessage nutzt das MessageRequestModel 2.1
 */
 func forwardMessage(response con.RestIn) con.RestOut {
-	log.Info("Forwarding Message to SOL")
+	log.Info("Forwarding Message to Star")
 
 	var message utils.MessageRequestModel
 	err := response.Context.BindJSON(&message)
@@ -384,6 +390,7 @@ func forwardMessage(response con.RestIn) con.RestOut {
 		return con.RestOut{StatusCode: respGeneralRequest.STATUSCODE}
 	}
 
+	fmt.Printf("Forward message to Star. \n")
 	return con.RestOut{StatusCode: http.StatusOK, Body: respGeneralRequest.RESPONSEBODY}
 }
 
@@ -449,7 +456,7 @@ func getMessageByUUID(response con.RestIn) con.RestOut {
 2.2: Weiterleiten von DELETE Requests von Komponente an Sol
 */
 func forwardDeletingMessages(request con.RestIn) con.RestOut {
-	log.Info("Forwarding DELETE Request to SOL")
+	log.Info("Forwarding DELETE Request to Star")
 
 	if request.Context.Query("star") != component.StarUUID {
 		// TODO Soll schon auf den korrekten Star schon bei der Komponente abgefangen werden?
@@ -472,6 +479,7 @@ func forwardDeletingMessages(request con.RestIn) con.RestOut {
 		return con.RestOut{StatusCode: respGeneralRequest.STATUSCODE}
 	}
 
+	fmt.Printf("Forward deleting message.\n")
 	return con.RestOut{StatusCode: http.StatusOK, Body: respGeneralRequest.RESPONSEBODY}
 }
 
