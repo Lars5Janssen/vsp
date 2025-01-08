@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"math/big"
@@ -61,6 +62,7 @@ func StartSol(
 	log = logger
 	log = log.With(slog.String("LogFrom", "SOL"))
 	log.Info("Starting as SOL")
+	fmt.Sprintf("Starting as SOL id: %s", sol.SolUUID)
 
 	// SOL Logic
 	initializeSol(log, ctx)
@@ -428,10 +430,10 @@ func deleteMessage(request con.RestIn) con.RestOut {
 		return con.RestOut{StatusCode: http.StatusNotFound}
 	}
 
-	msgList[msgId] = utils.MessageModel{
-		STATUS:  "deleted",
-		CHANGED: strconv.FormatInt(time.Now().Unix(), 10),
-	}
+	msg := msgList[msgId]
+	msg.STATUS = "deleted"
+	msg.CHANGED = strconv.FormatInt(time.Now().Unix(), 10)
+	msgList[msgId] = msg
 
 	return con.RestOut{StatusCode: http.StatusOK}
 }
@@ -456,11 +458,17 @@ func getListOfAllMessages(request con.RestIn) con.RestOut {
 	}
 
 	var resultList []utils.MessageModel
-	for _, value := range msgList {
-		if scope == "active" && value.STATUS == "active" {
-			resultList = append(resultList, value)
-		} else if scope != "active" {
-			resultList = append(resultList, value)
+	for _, msg := range msgList {
+		if scope == "active" && msg.STATUS == "active" {
+			resultList = append(resultList, msg)
+		} else if scope == "all" && msg.STATUS == "active" {
+			resultList = append(resultList, msg)
+		} else if scope == "all" && msg.STATUS != "active" {
+			delMsg := utils.MessageModel{
+				MSGID:  msg.MSGID,
+				STATUS: msg.STATUS,
+			}
+			resultList = append(resultList, delMsg)
 		}
 	}
 

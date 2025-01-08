@@ -1,0 +1,17 @@
+meta {
+  name: getListOfMessages
+  type: http
+  seq: 8
+}
+
+get {
+  url: http://192.168.178.120:{{Port}}/vs/v1/messages?star=4eb77195eb03103649f2653b5eae52e4&scope=all&view=header
+  body: none
+  auth: none
+}
+
+params:query {
+  star: 4eb77195eb03103649f2653b5eae52e4
+  scope: all
+  view: header
+}
