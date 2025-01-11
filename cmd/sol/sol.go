@@ -51,6 +51,8 @@ var nonce = 1
 
 var msgList = map[string]utils.MessageModel{}
 
+var tmpComUuidSet = utils.NewIntSet()
+
 func StartSol(
 	ctx context.Context,
 	logger *slog.Logger,
@@ -143,6 +145,8 @@ func StartSol(
 					log.Error("Error sending msg", "Error", err, "Addr", udpInput.Addr.IP)
 					// return
 				}
+				// Set um zu prüfen welche ComUUIDs schon vergeben wurden
+				tmpComUuidSet.Add(intValue)
 			}
 		default:
 		}
@@ -218,17 +222,17 @@ Damit SOL den auch kennt, gibt die neue Komponente selbst ihren derzeitigen Stat
 übermittelt, die von SOL vor der Integration auch geprüft werden, damit sichergestellt ist, dass auch der „richtige“
 Stern gemeint ist.
 */
-func registerComponentBySol(response con.RestIn) con.RestOut {
+func registerComponentBySol(request con.RestIn) con.RestOut {
 	var registerRequestModel utils.RequestModel
-	// err := response.Context.BindJSON(&registerRequestModel)
-	err := response.Context.ShouldBindJSON(&registerRequestModel)
+	// err := request.Context.BindJSON(&registerRequestModel)
+	err := request.Context.ShouldBindJSON(&registerRequestModel)
 	// If the JSON is not valid, return 401 Unauthorized
 	if err != nil {
 		return con.RestOut{StatusCode: http.StatusUnauthorized}
 	}
 
-	// Check if all the info from the component is correct
-	if checkConflict(registerRequestModel, response.IpAndPort) != http.StatusOK {
+	// Check if all the info from the component is correct, and hold tmpComUuidSet consistent.
+	if checkConflict(registerRequestModel, request.IpAndPort) != http.StatusOK {
 		return con.RestOut{StatusCode: http.StatusConflict}
 	} else if checkUnauthorized(registerRequestModel) != http.StatusOK {
 		return con.RestOut{StatusCode: http.StatusUnauthorized}
@@ -260,9 +264,9 @@ Jede aktive Komponente baut alle 30 Sekunden eine UNICAST-Verbindung zum
 Sekunden nochmal versucht. Wenn dann immer noch keine Verbindung zustande
 kommt, beendet sich die Komponente selbst.
 */
-func checkAvailabilityFromComponent(response con.RestIn) con.RestOut {
+func checkAvailabilityFromComponent(request con.RestIn) con.RestOut {
 	var registerRequestModel utils.RequestModel
-	err := response.Context.ShouldBindJSON(&registerRequestModel)
+	err := request.Context.ShouldBindJSON(&registerRequestModel)
 	if err != nil {
 		// Return 400 Bad Request if JSON is not valid
 		return con.RestOut{StatusCode: http.StatusBadRequest}
@@ -282,7 +286,7 @@ func checkAvailabilityFromComponent(response con.RestIn) con.RestOut {
 		return con.RestOut{StatusCode: http.StatusUnauthorized}
 	} else if checkNotFound(registerRequestModel) != http.StatusOK {
 		return con.RestOut{StatusCode: http.StatusNotFound}
-	} else if checkConflict(registerRequestModel, response.IpAndPort) != http.StatusOK {
+	} else if checkConflict(registerRequestModel, request.IpAndPort) != http.StatusOK {
 		return con.RestOut{StatusCode: http.StatusConflict}
 	}
 
@@ -296,11 +300,11 @@ func checkAvailabilityFromComponent(response con.RestIn) con.RestOut {
 	return con.RestOut{StatusCode: http.StatusOK}
 }
 
-func sendHeartBeatBack(response con.RestIn) con.RestOut {
-	if sol.StarUUID != response.Context.Query("star") {
+func sendHeartBeatBack(request con.RestIn) con.RestOut {
+	if sol.StarUUID != request.Context.Query("star") {
 		return con.RestOut{StatusCode: http.StatusUnauthorized}
 	}
-	uuid := response.Context.Param("comUUID")
+	uuid := request.Context.Param("comUUID")
 	if uuid == "" {
 		return con.RestOut{StatusCode: http.StatusConflict}
 	}
@@ -624,19 +628,30 @@ func checkNotFound(r utils.RequestModel) int {
 }
 
 func checkConflict(r utils.RequestModel, addr string) int {
+	if !tmpComUuidSet.Contains(r.COMPONENT) {
+		log.Error("ComUUID is not Valid")
+		fmt.Printf("ComUUID is not Valid")
+		return http.StatusConflict
+	}
+
 	addrs := strings.Split(addr, ":")
 	port, err := strconv.Atoi(addrs[1]) // Port von dem Component schickt nicht auf dem er hört
+
 	// TODO remove port == -1
-	if err != nil || port == -1 {
+	if err != nil {
+		log.Error("Error converting port to int", slog.String("error", err.Error()))
+		fmt.Printf("Error converting port to int. Have a look into error logs.")
+		tmpComUuidSet.Remove(r.COMPONENT)
 		return http.StatusConflict
 	}
 
 	if checkNotFound(r) == http.StatusOK && solList[r.COMPONENT].IPAddress != addrs[0] {
+		log.Error("IP Address is not the same as the IP from request.")
 		return http.StatusConflict
 	}
 
 	// r.COMTCP != port führt dazu das der Port von dem aus geschickt mit dem eingangsport der component verglichen wird.
-	// Das darf jedoch garnicht der gleiche Port sein.
+	// Das darf jedoch nicht der gleiche Port sein.
 	if r.COMIP != addrs[0] || r.STATUS != strconv.Itoa(200) {
 		log.Debug("hier is das problem",
 			slog.String("r.COMIP", r.COMIP),
@@ -646,9 +661,11 @@ func checkConflict(r utils.RequestModel, addr string) int {
 			slog.String("r.STATUS", r.STATUS),
 		)
 		// Return 409 Conflict
+		tmpComUuidSet.Remove(r.COMPONENT)
 		return http.StatusConflict
 	}
 	// Return 200 OK
+	tmpComUuidSet.Remove(r.COMPONENT)
 	return http.StatusOK
 }
 

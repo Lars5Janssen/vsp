@@ -197,12 +197,18 @@ func registerByStar() {
 		return
 	case http.StatusUnauthorized:
 		log.Error("Unauthorized to register by Sol")
+		fmt.Printf("Unauthorized to register by Sol with id: %d \n", component.ComUUID)
+		runComponentThread = false
 		return
 	case http.StatusForbidden:
 		log.Error("No room left")
+		fmt.Printf("No room left to register by Sol with id: %d \n", component.ComUUID)
+		runComponentThread = false
 		return
 	case http.StatusConflict:
 		log.Error("The request was invalid")
+		fmt.Printf("The request was invalid to register by Sol with id: %d \n", component.ComUUID)
+		runComponentThread = false
 		return
 	}
 	return
