@@ -231,6 +231,9 @@ func registerComponentBySol(request con.RestIn) con.RestOut {
 		return con.RestOut{StatusCode: http.StatusUnauthorized}
 	}
 
+	if checkForTmpComUuidSet(registerRequestModel) != http.StatusOK {
+		return con.RestOut{StatusCode: http.StatusConflict}
+	}
 	// Check if all the info from the component is correct, and hold tmpComUuidSet consistent.
 	if checkConflict(registerRequestModel, request.IpAndPort) != http.StatusOK {
 		return con.RestOut{StatusCode: http.StatusConflict}
@@ -253,7 +256,7 @@ func registerComponentBySol(request con.RestIn) con.RestOut {
 		ActiveStatus:    utils.Active,
 	}
 
-	return con.RestOut{StatusCode: http.StatusOK}
+	return con.RestOut{StatusCode: http.StatusOK, Body: ""}
 }
 
 /*
@@ -628,12 +631,6 @@ func checkNotFound(r utils.RequestModel) int {
 }
 
 func checkConflict(r utils.RequestModel, addr string) int {
-	if !tmpComUuidSet.Contains(r.COMPONENT) {
-		log.Error("ComUUID is not Valid")
-		fmt.Printf("ComUUID is not Valid")
-		return http.StatusConflict
-	}
-
 	addrs := strings.Split(addr, ":")
 	port, err := strconv.Atoi(addrs[1]) // Port von dem Component schickt nicht auf dem er hört
 
@@ -641,7 +638,6 @@ func checkConflict(r utils.RequestModel, addr string) int {
 	if err != nil {
 		log.Error("Error converting port to int", slog.String("error", err.Error()))
 		fmt.Printf("Error converting port to int. Have a look into error logs.")
-		tmpComUuidSet.Remove(r.COMPONENT)
 		return http.StatusConflict
 	}
 
@@ -661,10 +657,18 @@ func checkConflict(r utils.RequestModel, addr string) int {
 			slog.String("r.STATUS", r.STATUS),
 		)
 		// Return 409 Conflict
-		tmpComUuidSet.Remove(r.COMPONENT)
 		return http.StatusConflict
 	}
 	// Return 200 OK
+	return http.StatusOK
+}
+
+func checkForTmpComUuidSet(r utils.RequestModel) int {
+	if !tmpComUuidSet.Contains(r.COMPONENT) {
+		log.Error("ComUUID is not Valid")
+		fmt.Printf("ComUUID is not Valid")
+		return http.StatusConflict
+	}
 	tmpComUuidSet.Remove(r.COMPONENT)
 	return http.StatusOK
 }

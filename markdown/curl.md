@@ -11,10 +11,10 @@ curl -X DELETE http://172.18.0.2:8006/vs/v1/system/1000
 #### Curl to Sol
 ```bash
 curl -X POST http://172.17.0.2:8006/vs/v1/system -H "Content-Type: application/json" -d '{
-  "STAR": "dae5effb44ce9fd9bf1f4f7159fa334f",
-  "SOL": 6912,
-  "COMPONENT": 6216,
-  "COMIP": "127.0.0.2",
+  "STAR": "5877f963452750641d09b72f1f9bd163",
+  "SOL": 4187,
+  "COMPONENT": 1133,
+  "COMIP": "172.17.0.3",
   "COMTCP": 8006,
   "STATUS": "200"
 }' -i
