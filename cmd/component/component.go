@@ -118,6 +118,7 @@ func initializeComponent(log *slog.Logger, ctx context.Context, response string)
 	component.ComPort = ctx.Value("port").(int)
 	component.Status = http.StatusOK // TODO ist das zu beginn wirklich so?
 
+	// TODO umgang nach valdierungsfehler
 	parseResponseIntoComponent(response, log)
 
 	urlSolPraefix = "http://" + component.SolIP + ":" + strconv.Itoa(component.SolPort)

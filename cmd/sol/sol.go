@@ -64,7 +64,7 @@ func StartSol(
 	log = logger
 	log = log.With(slog.String("LogFrom", "SOL"))
 	log.Info("Starting as SOL")
-	fmt.Sprintf("Starting as SOL id: %s", sol.SolUUID)
+	fmt.Printf("Starting as SOL id: %s", sol.SolUUID)
 
 	// SOL Logic
 	initializeSol(log, ctx)
@@ -116,6 +116,7 @@ func StartSol(
 			// to test: echo HELLO? | ncat -u 255.255.255.255 8006
 			log.Info("Received UDP message", slog.String("message", udpInput.Message))
 			if udpInput.Message == "HELLO?" {
+				fmt.Printf("Received HELLO? from %s \n", udpInput.Addr.IP.String())
 				intValue, err := generateComUUID()
 				if err != nil {
 					log.Error("Error generating comUUID")
@@ -143,6 +144,7 @@ func StartSol(
 				err = con.SendMessage(log, udpInput.Addr, sol.Port, string(marshal))
 				if err != nil {
 					log.Error("Error sending msg", "Error", err, "Addr", udpInput.Addr.IP)
+					fmt.Printf("Error sending msg: %s \n", err)
 					// return
 				}
 				// Set um zu prüfen welche ComUUIDs schon vergeben wurden
@@ -256,7 +258,7 @@ func registerComponentBySol(request con.RestIn) con.RestOut {
 		ActiveStatus:    utils.Active,
 	}
 
-	return con.RestOut{StatusCode: http.StatusOK, Body: ""}
+	return con.RestOut{StatusCode: http.StatusOK}
 }
 
 /*
@@ -666,7 +668,7 @@ func checkConflict(r utils.RequestModel, addr string) int {
 func checkForTmpComUuidSet(r utils.RequestModel) int {
 	if !tmpComUuidSet.Contains(r.COMPONENT) {
 		log.Error("ComUUID is not Valid")
-		fmt.Printf("ComUUID is not Valid")
+		fmt.Printf("ComUUID is not Valid\n")
 		return http.StatusConflict
 	}
 	tmpComUuidSet.Remove(r.COMPONENT)
