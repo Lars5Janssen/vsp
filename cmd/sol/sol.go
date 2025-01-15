@@ -717,3 +717,29 @@ func listContains(uuid int) bool {
 	}
 	return false
 }
+
+// TODO's methods to implement
+
+func registerStarByGalaxy(request con.RestIn) con.RestOut {
+	return con.RestOut{StatusCode: http.StatusNotImplemented}
+}
+
+func getListOfAllStars(request con.RestIn) con.RestOut {
+	return con.RestOut{StatusCode: http.StatusNotImplemented}
+}
+
+func getStarInGalaxy(request con.RestIn) con.RestOut {
+	return con.RestOut{StatusCode: http.StatusNotImplemented}
+}
+
+func disconnectStar(request con.RestIn) con.RestOut {
+	return con.RestOut{StatusCode: http.StatusNotImplemented}
+}
+
+func updateStarStatus(request con.RestIn) con.RestOut {
+	return con.RestOut{StatusCode: http.StatusNotImplemented}
+}
+
+func forwardMessageToStar(request con.RestIn) con.RestOut {
+	return con.RestOut{StatusCode: http.StatusNotImplemented}
+}

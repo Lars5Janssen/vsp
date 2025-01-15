@@ -10,7 +10,7 @@ func GetComponentEndpoints() []con.Endpoint {
 
 var endpoints = []con.Endpoint{
 	{
-		Name: []string{"/vs/v1/system"}, // component an sol
+		Name: []string{"/vs/v2/system"}, // component an sol
 		AcceptedMethods: map[con.Method]con.Handler{
 			con.POST: iAmNotSol, // unauthorized
 		},
@@ -18,7 +18,7 @@ var endpoints = []con.Endpoint{
 	{
 		// ?star=starUUID
 		// die query's müssen herausgefiltert werden.
-		Name: []string{"/vs/v1/system/:comUUID"}, // TODO :comUUID muss definiert werden
+		Name: []string{"/vs/v2/system/:comUUID"}, // TODO :comUUID muss definiert werden
 		AcceptedMethods: map[con.Method]con.Handler{
 			con.PATCH:  iAmNotSol, // unauthorized
 			con.GET:    sendHeartBeatBackToSol,
@@ -28,7 +28,7 @@ var endpoints = []con.Endpoint{
 	{
 		// ?star=starUUID&scope=scope&view=view
 		// sind query's die der Client mitschickt welche dann herausgefiltert werden
-		Name: []string{"/vs/v1/messages"},
+		Name: []string{"/vs/v2/messages"},
 		AcceptedMethods: map[con.Method]con.Handler{
 			con.GET:  getListOfAllMessages,
 			con.POST: forwardMessage, // komponenten können messages erstellen und auch an sol weiterleiten
@@ -37,7 +37,7 @@ var endpoints = []con.Endpoint{
 	{
 		// ?star=starUUID
 		// sind query's die der Client mitschickt welche dann herausgefiltert werden
-		Name: []string{"/vs/v1/messages/:msgUUID"},
+		Name: []string{"/vs/v2/messages/:msgUUID"},
 		AcceptedMethods: map[con.Method]con.Handler{
 			con.DELETE: forwardDeletingMessages, // auch für SolAPI
 			con.GET:    getMessageByUUID,

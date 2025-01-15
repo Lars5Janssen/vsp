@@ -26,7 +26,13 @@
     - POST /vs/v**2**/messages/{msgid}
     - GET /vs/v**2**/messages/{msgid}
     - DELETE /vs/v**2**/messages/{msgid}?star={staruuid}
-    - GET /vs/v**2**/messages?star={staruuid|all}&scope={all|new}&view={header|id}
+    - GET /vs/v**2**/messages?star={staruuid|all}&scope={all|active}&view={header|id}
+      - heißt es hier "view" statt "info"?
+      - "all" => alle nachrichten von allen sternen?
+        - nur die die von anderen Sternen eingegangen sind.
+      - bei staruuid NUR welche die bei dem Stern eingegangen sind?
+      - 
+      
   - [ ] GALAXYPORT wird dem Programm übergeben
 - [ ] SOL muss nach der Initialisierung einen Broadcast mit "HELLO? | I AM STARUUID" an GALAXYPORT per UDP senden
 - [ ] Beim Abmelden werden auch andere Sterne benachrichtigt wie Komponenten
