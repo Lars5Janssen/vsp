@@ -136,7 +136,7 @@ func StartSol(
 					log.Error("Error marshalling response", slog.String("error", err.Error()))
 					return
 				}
-				log.Info("Sending response to HELLO?", slog.String("response", response.STAR))
+				log.Info("Sending response to: "+response.STAR, slog.String("response", response.STAR))
 				if con.OwnAddrCheck(*log, udpInput.Addr.IP.String()) {
 					log.Debug("Would send message to own. Bad")
 				}
