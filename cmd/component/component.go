@@ -5,19 +5,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
-	"reflect"
-
-	con "github.com/Lars5Janssen/vsp/connection"
-
 	"log/slog"
+	"net"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
+	con "github.com/Lars5Janssen/vsp/connection"
 	"github.com/Lars5Janssen/vsp/utils"
 )
 
@@ -77,7 +75,9 @@ func StartComponent(
 					if !sendHeartBeatToSol() {
 						time.Sleep(20 * time.Second)
 						if !sendHeartBeatToSol() {
-							logger.Error("Failed to send heartbeat to SOL three time. Exiting Component")
+							logger.Error(
+								"Failed to send heartbeat to SOL three time. Exiting Component",
+							)
 							setRunComponentThread(false)
 						}
 					}
@@ -293,21 +293,22 @@ disconnectAfterExit 1.2 Pflege des Sterns – Abmelden von SOL
 */
 func disconnectAfterExit() {
 	ticker := time.NewTicker(10 * time.Second)
+	failedString := "Failed to disconnect from Star. Star not reachable. Try it again"
 
 	for runComponentThread {
 		select {
 		case <-ticker.C:
 			if !disconnectAfterExitHelper() {
-				log.Error("Failed to disconnect from Star. Star not reachable. Try it again")
-				fmt.Printf("Failed to disconnect from Star. Star not reachable. Try it again\n")
+				log.Error(failedString)
+				fmt.Println(failedString)
 				time.Sleep(10 * time.Second)
 				if !disconnectAfterExitHelper() {
-					log.Error("Failed to disconnect from Star. Star not reachable. Try it again")
-					fmt.Printf("Failed to disconnect from Star. Star not reachable. Try it again \n")
+					log.Error(failedString)
+					fmt.Println(failedString)
 					time.Sleep(20 * time.Second)
 					if !disconnectAfterExitHelper() {
-						log.Error("Failed to disconnect from Star three time. Exiting Component")
-						fmt.Printf("Failed to disconnect from Star. Star not reachable. Try it again \n")
+						log.Error(failedString)
+						fmt.Println(failedString)
 						setRunComponentThread(false)
 					}
 				}
@@ -319,7 +320,9 @@ func disconnectAfterExit() {
 
 func disconnectAfterExitHelper() bool {
 	log.Info("Disconnect from Star")
-	url := urlSolPraefix + "/vs/v1/system/" + strconv.Itoa(component.ComUUID) + "?star=" + component.StarUUID
+	url := urlSolPraefix + "/vs/v1/system/" + strconv.Itoa(
+		component.ComUUID,
+	) + "?star=" + component.StarUUID
 
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
@@ -495,7 +498,10 @@ func sendMessageToSol(message interface{}, url string, requestType string) inter
 	messageToSend, err := json.Marshal(message)
 	if err != nil {
 		log.Error("Error while marshalling data", slog.String("error", err.Error()))
-		return con.RestOut{StatusCode: http.StatusConflict, Body: gin.H{"error": "Error while marshalling data"}}
+		return con.RestOut{
+			StatusCode: http.StatusConflict,
+			Body:       gin.H{"error": "Error while marshalling data"},
+		}
 	}
 
 	req, err := http.NewRequest(requestType, url, strings.NewReader(string(messageToSend)))
@@ -508,7 +514,10 @@ func sendMessageToSol(message interface{}, url string, requestType string) inter
 	if err != nil {
 		log.Error("Failed to send Message to SOL with id: "+component.StarUUID+"."+
 			"\n Maybe the star is not reachable anymore.", slog.String("error", err.Error()))
-		return con.RestOut{StatusCode: http.StatusInternalServerError, Body: gin.H{"error": err.Error()}}
+		return con.RestOut{
+			StatusCode: http.StatusInternalServerError,
+			Body:       gin.H{"error": err.Error()},
+		}
 	}
 
 	body, err := io.ReadAll(resp.Body)

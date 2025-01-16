@@ -20,10 +20,11 @@ COPY main.go go.mod go.sum ./
 COPY cmd/ ./cmd/
 COPY connection/ ./connection/
 COPY utils/ ./utils/
-COPY --chmod=755 compose_entrypoint.sh dockerbuild.sh mai[n] ./
+COPY compose_entrypoint.sh dockerbuild.sh mai[n] ./
+RUN chmod +x compose_entrypoint.sh dockerbuild.sh 
 
 # Build programm or copy it to /usr/local/bin/ if a precompiled binary has been provided
-RUN go mod download && go mod verify
+# RUN go mod download && go mod verify
 RUN . /usr/src/app/dockerbuild.sh
 
 # Configure Environment
