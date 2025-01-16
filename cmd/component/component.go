@@ -1,6 +1,7 @@
 package component
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -504,11 +505,12 @@ func sendMessageToSol(message interface{}, url string, requestType string) inter
 		}
 	}
 
-	req, err := http.NewRequest(requestType, url, strings.NewReader(string(messageToSend)))
+	req, err := http.NewRequest(requestType, url, bytes.NewBuffer(messageToSend))
 	if err != nil {
 		log.Error("Failed to create "+requestType+" request", slog.String("error", err.Error()))
 		return con.RestOut{StatusCode: http.StatusConflict, Body: gin.H{"error": err.Error()}}
 	}
+	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
 	if err != nil {
