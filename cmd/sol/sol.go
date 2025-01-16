@@ -7,10 +7,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"io"
 	"log/slog"
 	"math/big"
 	"net/http"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -39,6 +41,15 @@ type ComponentEntry struct {
 	ActiveStatus    utils.ActiveStatus
 }
 
+type SolGalaxy struct {
+	StarUUID  string
+	SolUUID   int
+	IPAddress string
+	Port      int
+	NoCom     int
+	Status    utils.ActiveStatus
+}
+
 var log *slog.Logger
 
 var sol Sol
@@ -51,6 +62,9 @@ var nonce = 1
 
 var msgList = map[string]utils.MessageModel{}
 
+// Key ist die StarUUID
+var starList = map[string]SolGalaxy{}
+
 func StartSol(
 	ctx context.Context,
 	logger *slog.Logger,
@@ -62,7 +76,7 @@ func StartSol(
 	log = logger
 	log = log.With(slog.String("LogFrom", "SOL"))
 	log.Info("Starting as SOL")
-	fmt.Sprintf("Starting as SOL id: %s", sol.SolUUID)
+	fmt.Println(fmt.Sprintf("Starting as SOL id: %d", sol.SolUUID))
 
 	// SOL Logic
 	initializeSol(log, ctx)
@@ -85,6 +99,15 @@ func StartSol(
 	// has to be done outside for loop
 	go con.AttendHTTP(log, restIn, restOut, solEndpoints)
 
+	// search for other star, build galaxy
+	udpGalaxy := make(chan con.UDP, 1)
+	galaxyPort := ctx.Value("galaxyPort").(int)
+	go con.ListenForBroadcastMessage(log, galaxyPort, udpGalaxy)
+	err := con.SendHello(log, galaxyPort, fmt.Sprintf("HELLO? I AM %s", sol.StarUUID))
+	if err != nil {
+		log.Error("Send Hello goes wrong", slog.String("Error Message", err.Error()))
+	}
+
 	// Check if the components are still active
 	ticker := time.NewTicker(5 * time.Second) // TODO check every 5 seconds or 1 second?
 	go func() {
@@ -105,6 +128,52 @@ func StartSol(
 				sendDeleteRequests()
 				return
 			}
+		default:
+		}
+
+		select {
+		case galaxyInput := <-udpGalaxy:
+			log.Info("Recived UDP galaxy message", slog.String("message", galaxyInput.Message))
+			galaxyIntroduceString := "HELLO? I AM "
+			r, _ := regexp.Compile("^((HELLO\\? I AM )([0-9a-fA-F]{16}))$")
+
+			if len(galaxyInput.Message) == len(galaxyIntroduceString)+128/8 && // Check if rest of msg only has a md5 hash (checked by length)
+				r.MatchString(galaxyInput.Message) {
+				starUUID := r.FindStringSubmatch(galaxyInput.Message)[2]
+				star, ok := starList[starUUID]
+				if ok { // We know of <STARUUID>
+					if star.IPAddress == galaxyInput.Addr.IP.String() {
+						url := "http://" + star.IPAddress + ":" + strconv.Itoa(star.Port) + "/vs/v2/star/" + star.StarUUID
+						requestType := http.MethodPatch
+						model := utils.RegisterSolModel{
+							STAR:   sol.StarUUID,
+							SOL:    sol.SolUUID,
+							SOLIP:  sol.IPAddress,
+							NOCOM:  lenOfSolList,
+							STATUS: "active",
+						}
+						resp := sendMessageToStar(model, url, requestType)
+						dealWithResponse(resp, galaxyInput)
+					} else {
+						continue
+					}
+				} else { // We don't know of <STARUUID>
+					url := "http://" + galaxyInput.Addr.IP.String() + ":" + strconv.Itoa(galaxyInput.Addr.Port) +
+						"/vs/v2/star/"
+					requestType := http.MethodPost
+					model := utils.RegisterSolModel{
+						STAR:   sol.StarUUID,
+						SOL:    sol.SolUUID,
+						SOLIP:  sol.IPAddress,
+						NOCOM:  lenOfSolList,
+						STATUS: "active",
+					}
+					resp := sendMessageToStar(model, url, requestType)
+					dealWithResponse(resp, galaxyInput)
+				}
+
+			}
+
 		default:
 		}
 
@@ -147,6 +216,56 @@ func StartSol(
 		default:
 		}
 
+	}
+}
+
+func dealWithResponse(resp interface{}, galaxyInput con.UDP) {
+	if reflect.TypeOf(resp) == reflect.TypeOf(con.RestOut{}) {
+		log.Info("Failed to send Message to Star.")
+	}
+
+	response := resp.(utils.GeneralResponse)
+
+	if response.STATUSCODE != http.StatusOK {
+		log.Error("Failed to send Message to Star: "+galaxyInput.Addr.IP.String()+
+			":"+strconv.Itoa(galaxyInput.Addr.Port)+", Wrong Status: ", slog.Int("status", response.STATUSCODE))
+	}
+}
+
+func sendMessageToStar(message interface{}, url string, requestType string) interface{} {
+	var client = &http.Client{}
+
+	messageToSend, err := json.Marshal(message)
+	if err != nil {
+		log.Error("Error while marshalling data", slog.String("error", err.Error()))
+		return con.RestOut{StatusCode: http.StatusConflict, Body: gin.H{"error": "Error while marshalling data"}}
+	}
+
+	req, err := http.NewRequest(requestType, url, strings.NewReader(string(messageToSend)))
+	if err != nil {
+		log.Error("Failed to create "+requestType+" request", slog.String("error", err.Error()))
+		return con.RestOut{StatusCode: http.StatusConflict, Body: gin.H{"error": err.Error()}}
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Error("Failed to send Message to Star."+
+			"\n Maybe the star is not reachable anymore.", slog.String("error", err.Error()))
+		return con.RestOut{StatusCode: http.StatusInternalServerError, Body: gin.H{"error": err.Error()}}
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Error("Failed to read response body", slog.String("error", err.Error()))
+		return con.RestOut{StatusCode: http.StatusBadRequest, Body: gin.H{"error": err.Error()}}
+	}
+
+	var respBody interface{}
+	err = json.Unmarshal(body, &respBody)
+
+	return utils.GeneralResponse{
+		STATUSCODE:   resp.StatusCode,
+		RESPONSEBODY: respBody,
 	}
 }
 
@@ -712,6 +831,15 @@ func listContains(uuid int) bool {
 	// iterate over the array and compare given string to each element
 	for _, value := range solList {
 		if value.ComUUID == uuid {
+			return true
+		}
+	}
+	return false
+}
+
+func starListContains(uuid string) bool {
+	for _, value := range starList {
+		if value.StarUUID == uuid {
 			return true
 		}
 	}

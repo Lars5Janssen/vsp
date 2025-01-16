@@ -14,9 +14,8 @@ type UDP struct {
 	Message string
 }
 
-func SendHello(log *slog.Logger, port int) error {
+func SendHello(log *slog.Logger, port int, msg string) error {
 	log = log.With(slog.String("LogFrom", "UDP"))
-	msg := "HELLO?"
 	err := SendMessage(log, net.UDPAddr{}, port, msg)
 	if err != nil {
 		log.Error(err.Error())

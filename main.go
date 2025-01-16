@@ -30,7 +30,10 @@ func main() {
 	stopIfSol := flag.Bool("killSol", false, "Stop if the process would be sol")
 	maxActiveComponents := flag.Int("maxActiveComponents", 4,
 		"Maximum number of active components") // -maxActiveComponents=4
+	galaxyId := flag.Int("galaxyId", 42, "Id to run galaxy on")
 	flag.Parse()
+
+	galaxyPort := 8000 + *galaxyId
 
 	// Logger
 	// Open or create a log file
@@ -77,6 +80,7 @@ func main() {
 	workerCTX = context.WithValue(workerCTX, "ip", ip)
 	workerCTX = context.WithValue(workerCTX, "port", *port)
 	workerCTX = context.WithValue(workerCTX, "maxActiveComponents", *maxActiveComponents)
+	workerCTX = context.WithValue(workerCTX, "galaxyPort", galaxyPort)
 
 	go cmd.StartUserInput(log, inputWorker, workerCancel, udpCancel)
 
@@ -103,7 +107,7 @@ func main() {
 			if !noMessage {
 				continue
 			}
-			err := con.SendHello(log, *port)
+			err := con.SendHello(log, *port, "HELLO?")
 			if err != nil {
 				log.Error("Could not Send Hello")
 				return

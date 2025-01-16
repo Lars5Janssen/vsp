@@ -19,6 +19,20 @@ type RequestModel struct { // 1.0
 	STATUS    string `json:"status" validate:"required"`
 }
 
+// RegisterSolModel
+/*
+Wird genutzt um ein SOL wenn <STAR-UUID> aus dem UDP Paket noch nicht bekannt ist.
+Dies ist das Model das von allen Empfangenden SOL's geschickt wird damit die neue SOL alle Anderen kennt.
+*/
+type RegisterSolModel struct {
+	STAR   string `json:"starUUID" validate:"required"`
+	SOL    int    `json:"comUUID" validate:"required,min=1000,max=9999"`
+	SOLIP  string `json:"sol-ip" validate:"required,ip"`
+	SOLTCP int    `json:"sol-tcp" validate:"required,min=0,max=65536"`
+	NOCOM  int    `json:"no-com" validate:"required"`
+	STATUS string `json:"status" validate:"required"`
+}
+
 // ResponseModel
 /*
 Response Model für die Antwort von SOL via Broadcast.
