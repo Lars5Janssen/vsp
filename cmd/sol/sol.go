@@ -232,19 +232,38 @@ func dealWithResponse(resp interface{}, galaxyInput con.UDP) {
 	}
 }
 
+/*
+Wenn die Message nil ist, dann wird der Request als text/plain losgeschickt,
+ansonsten als JSON
+*/
 func sendMessageToStar(message interface{}, url string, requestType string) interface{} {
 	var client = &http.Client{}
+	var resp *http.Response
+	var req *http.Request
 
-	messageToSend, err := json.Marshal(message)
-	if err != nil {
-		log.Error("Error while marshalling data", slog.String("error", err.Error()))
-		return con.RestOut{StatusCode: http.StatusConflict, Body: gin.H{"error": "Error while marshalling data"}}
-	}
+	if message != nil {
+		messageToSend, err := json.Marshal(message)
+		if err != nil {
+			log.Error("Error while marshalling data", slog.String("error", err.Error()))
+			return con.RestOut{StatusCode: http.StatusConflict, Body: gin.H{"error": "Error while marshalling data"}}
+		}
 
-	req, err := http.NewRequest(requestType, url, strings.NewReader(string(messageToSend)))
-	if err != nil {
-		log.Error("Failed to create "+requestType+" request", slog.String("error", err.Error()))
-		return con.RestOut{StatusCode: http.StatusConflict, Body: gin.H{"error": err.Error()}}
+		// Build Json Request
+		req, err := http.NewRequest(requestType, url, strings.NewReader(string(messageToSend)))
+		if err != nil {
+			log.Error("Failed to create "+requestType+" request", slog.String("error", err.Error()))
+			return con.RestOut{StatusCode: http.StatusConflict, Body: gin.H{"error": err.Error()}}
+		}
+		req.Header.Set("Content-Type", "application/json")
+	} else {
+
+		// Build text/plain Request
+		req, err := http.NewRequest(requestType, url, nil)
+		if err != nil {
+			log.Error("Failed to create "+requestType+" request", slog.String("error", err.Error()))
+			return con.RestOut{StatusCode: http.StatusConflict, Body: gin.H{"error": err.Error()}}
+		}
+		req.Header.Set("text/plain", "text/plain")
 	}
 
 	resp, err := client.Do(req)
