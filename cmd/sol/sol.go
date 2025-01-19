@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"io"
 	"log/slog"
 	"math/big"
@@ -18,6 +17,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/gin-gonic/gin"
 
 	con "github.com/Lars5Janssen/vsp/connection"
 	"github.com/Lars5Janssen/vsp/utils"
@@ -133,7 +134,7 @@ func StartSol(
 
 		select {
 		case galaxyInput := <-udpGalaxy:
-			log.Info("Recived UDP galaxy message", slog.String("message", galaxyInput.Message))
+			log.Info("Received UDP galaxy message", slog.String("message", galaxyInput.Message))
 			galaxyIntroduceString := "HELLO? I AM "
 			r, _ := regexp.Compile("^((HELLO\\? I AM )([0-9a-fA-F]{16}))$")
 
@@ -171,9 +172,7 @@ func StartSol(
 					resp := sendMessageToStar(model, url, requestType)
 					dealWithResponse(resp, galaxyInput)
 				}
-
 			}
-
 		default:
 		}
 
@@ -229,6 +228,18 @@ func dealWithResponse(resp interface{}, galaxyInput con.UDP) {
 	if response.STATUSCODE != http.StatusOK {
 		log.Error("Failed to send Message to Star: "+galaxyInput.Addr.IP.String()+
 			":"+strconv.Itoa(galaxyInput.Addr.Port)+", Wrong Status: ", slog.Int("status", response.STATUSCODE))
+		return
+	}
+
+	newStar := response.RESPONSEBODY.(utils.RegisterSolModel)
+	// TODO validate newStar
+	starList[newStar.STAR] = SolGalaxy{
+		StarUUID:  newStar.STAR,
+		SolUUID:   newStar.SOL,
+		IPAddress: newStar.SOLIP,
+		Port:      newStar.SOLTCP,
+		NoCom:     newStar.NOCOM,
+		Status:    utils.Active,
 	}
 }
 
@@ -240,6 +251,7 @@ func sendMessageToStar(message interface{}, url string, requestType string) inte
 	var client = &http.Client{}
 	var resp *http.Response
 	var req *http.Request
+	var err error
 
 	if message != nil {
 		messageToSend, err := json.Marshal(message)
@@ -249,24 +261,24 @@ func sendMessageToStar(message interface{}, url string, requestType string) inte
 		}
 
 		// Build Json Request
-		req, err := http.NewRequest(requestType, url, strings.NewReader(string(messageToSend)))
+		req, err = http.NewRequest(requestType, url, strings.NewReader(string(messageToSend)))
 		if err != nil {
 			log.Error("Failed to create "+requestType+" request", slog.String("error", err.Error()))
 			return con.RestOut{StatusCode: http.StatusConflict, Body: gin.H{"error": err.Error()}}
 		}
 		req.Header.Set("Content-Type", "application/json")
 	} else {
-
 		// Build text/plain Request
-		req, err := http.NewRequest(requestType, url, nil)
+		req, err = http.NewRequest(requestType, url, nil)
 		if err != nil {
 			log.Error("Failed to create "+requestType+" request", slog.String("error", err.Error()))
 			return con.RestOut{StatusCode: http.StatusConflict, Body: gin.H{"error": err.Error()}}
 		}
+		// TODO should be Set("Content-Type", "text/plain") oder nicht?
 		req.Header.Set("text/plain", "text/plain")
 	}
 
-	resp, err := client.Do(req)
+	resp, err = client.Do(req)
 	if err != nil {
 		log.Error("Failed to send Message to Star."+
 			"\n Maybe the star is not reachable anymore.", slog.String("error", err.Error()))
