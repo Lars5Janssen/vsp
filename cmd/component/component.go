@@ -520,6 +520,7 @@ func sendMessageToSol(message interface{}, url string, requestType string) inter
 			log.Error("Failed to create "+requestType+" request", slog.String("error", err.Error()))
 			return con.RestOut{StatusCode: http.StatusConflict, Body: gin.H{"error": err.Error()}}
 		}
+		req.Header.Set("Content-Type", "text/plain")
 	}
 
 	resp, err := client.Do(req)
