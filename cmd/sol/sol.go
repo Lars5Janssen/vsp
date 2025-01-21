@@ -64,7 +64,7 @@ func StartSol(
 	log = logger
 	log = log.With(slog.String("LogFrom", "SOL"))
 	log.Info("Starting as SOL")
-	fmt.Printf("Starting as SOL id: %s", sol.SolUUID)
+	fmt.Sprintf("Starting as SOL id: %s", sol.SolUUID)
 
 	// SOL Logic
 	initializeSol(log, ctx)
@@ -137,7 +137,7 @@ func StartSol(
 					log.Error("Error marshalling response", slog.String("error", err.Error()))
 					return
 				}
-				log.Info("Sending response to HELLO?", slog.String("response", response.STAR))
+				log.Info("Sending response to: "+response.STAR, slog.String("response", response.STAR))
 				if con.OwnAddrCheck(*log, udpInput.Addr.IP.String()) {
 					log.Debug("Would send message to own. Bad")
 				}
@@ -233,11 +233,10 @@ func registerComponentBySol(request con.RestIn) con.RestOut {
 		return con.RestOut{StatusCode: http.StatusUnauthorized}
 	}
 
-	if checkForTmpComUuidSet(registerRequestModel) != http.StatusOK {
-		return con.RestOut{StatusCode: http.StatusConflict}
-	}
 	// Check if all the info from the component is correct, and hold tmpComUuidSet consistent.
-	if checkConflict(registerRequestModel, request.IpAndPort) != http.StatusOK {
+	if checkTmpComUuidSet(registerRequestModel) != http.StatusOK {
+		return con.RestOut{StatusCode: http.StatusConflict}
+	} else if checkConflict(registerRequestModel, request.IpAndPort) != http.StatusOK {
 		return con.RestOut{StatusCode: http.StatusConflict}
 	} else if checkUnauthorized(registerRequestModel) != http.StatusOK {
 		return con.RestOut{StatusCode: http.StatusUnauthorized}
@@ -632,6 +631,18 @@ func checkNotFound(r utils.RequestModel) int {
 	return http.StatusOK
 }
 
+func checkTmpComUuidSet(r utils.RequestModel) int {
+	if !tmpComUuidSet.Contains(r.COMPONENT) {
+		log.Error("ComUUID is not Valid")
+		fmt.Printf("ComUUID is not Valid")
+		return http.StatusConflict
+	}
+
+	// Return 200 OK
+	tmpComUuidSet.Remove(r.COMPONENT)
+	return http.StatusOK
+}
+
 func checkConflict(r utils.RequestModel, addr string) int {
 	addrs := strings.Split(addr, ":")
 	port, err := strconv.Atoi(addrs[1]) // Port von dem Component schickt nicht auf dem er hört
@@ -640,6 +651,7 @@ func checkConflict(r utils.RequestModel, addr string) int {
 	if err != nil {
 		log.Error("Error converting port to int", slog.String("error", err.Error()))
 		fmt.Printf("Error converting port to int. Have a look into error logs.")
+		tmpComUuidSet.Remove(r.COMPONENT)
 		return http.StatusConflict
 	}
 
@@ -662,16 +674,6 @@ func checkConflict(r utils.RequestModel, addr string) int {
 		return http.StatusConflict
 	}
 	// Return 200 OK
-	return http.StatusOK
-}
-
-func checkForTmpComUuidSet(r utils.RequestModel) int {
-	if !tmpComUuidSet.Contains(r.COMPONENT) {
-		log.Error("ComUUID is not Valid")
-		fmt.Printf("ComUUID is not Valid\n")
-		return http.StatusConflict
-	}
-	tmpComUuidSet.Remove(r.COMPONENT)
 	return http.StatusOK
 }
 
