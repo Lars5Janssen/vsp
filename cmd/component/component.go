@@ -534,11 +534,6 @@ func sendMessageToSol(message interface{}, url string, requestType string) inter
 	}
 
 	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Error("Failed to read response body", slog.String("error", err.Error()))
-		return con.RestOut{StatusCode: http.StatusBadRequest, Body: gin.H{"error": err.Error()}}
-	}
-
 	var respBody interface{}
 	err = json.Unmarshal(body, &respBody)
 

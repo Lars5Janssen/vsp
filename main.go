@@ -35,8 +35,8 @@ func main() {
 	// Logger
 	// Open or create a log file
 	// TODO not nice with the dot
-	// Mit punkt docker ohne punkt lokal
-	fileName := "./app/logs/app.log"
+	// Mit punkt docker unter windows ohne punkt
+	fileName := "/app/logs/app.log"
 	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		fmt.Printf("Failed to open log file: %v\n", err)

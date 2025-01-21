@@ -101,7 +101,11 @@ func StartTCPServer(
 					ipAndPort := c.Request.RemoteAddr
 					inputChannel <- RestIn{vv, ipAndPort, c}
 					o := <-outputChannel
-					c.JSON(o.StatusCode, o.Body)
+					if o.Body == nil {
+						c.Data(o.StatusCode, "text/plain", nil)
+					} else {
+						c.JSON(o.StatusCode, o.Body)
+					}
 				}
 
 				switch k {
