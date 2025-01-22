@@ -204,6 +204,7 @@ func sendRequestsToActiveComponents(uuid int) error {
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Error("Failed to send GET request", slog.String("error", err.Error()))
+		entry.ActiveStatus = utils.Disconnected
 	}
 	if resp != nil {
 		defer func(Body io.ReadCloser) {
@@ -224,6 +225,7 @@ func sendRequestsToActiveComponents(uuid int) error {
 			if err != nil {
 				log.Error("Failed to decode response body", slog.String("error", err.Error()))
 				entry.Status = strconv.Itoa(resp.StatusCode)
+				entry.ActiveStatus = utils.Disconnected
 			} else {
 				entry.Status = RequestModel.STATUS
 				log.Info("Successfully parsed response body", slog.Any("RequestModel", RequestModel))
