@@ -160,7 +160,10 @@ func monitorComponents() {
 		// Get the earliest TimeInteraktion and add 60 seconds
 		earliestTime := sortedList[0].TimeInteraktion
 		waitTime := earliestTime.Add(60 * time.Second)
-		log.Info("Next check in 60 seconds", slog.Time("time", waitTime))
+		log.Info("Next check in 60 seconds",
+			slog.Time("time", waitTime),
+			slog.String("comUUID", strconv.Itoa(sortedList[0].ComUUID)),
+		)
 
 		// Wait until the waitTime
 		time.Sleep(time.Until(waitTime))
