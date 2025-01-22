@@ -51,7 +51,8 @@ func main() {
 	// Set up log
 	lvl := new(slog.LevelVar)
 	lvl.Set(slog.LevelDebug)
-	log := slog.New(slog.NewTextHandler(file, &slog.HandlerOptions{
+	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		// log := slog.New(slog.NewTextHandler(file, &slog.HandlerOptions{
 		Level: lvl,
 	}))
 
