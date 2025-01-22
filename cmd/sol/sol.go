@@ -169,7 +169,7 @@ func monitorComponents() {
 		time.Sleep(time.Until(waitTime))
 
 		// Check if the earliest TimeInteraktion has changed
-		if sortedList[0].TimeInteraktion != earliestTime {
+		if solList[sortedList[0].ComUUID].TimeInteraktion != earliestTime {
 			continue
 		}
 
