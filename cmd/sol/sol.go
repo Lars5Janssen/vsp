@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"net/http"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -88,15 +89,7 @@ func StartSol(
 	go con.AttendHTTP(log, restIn, restOut, solEndpoints)
 
 	// Check if the components are still active
-	ticker := time.NewTicker(5 * time.Second) // TODO check every 5 seconds or 1 second?
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				checkInteractionTimes()
-			}
-		}
-	}()
+	go monitorComponents()
 
 	// forever loop for commands and udp messages
 	for {
@@ -154,18 +147,48 @@ func StartSol(
 	}
 }
 
-func checkInteractionTimes() {
-	for uuid, entry := range solList {
-		if entry.ActiveStatus == utils.Active {
-			if time.Since(entry.TimeInteraktion) > 60*time.Second {
-				err := sendRequestsToActiveComponents(uuid)
-				if err != nil {
-					return
-				}
-				break
-			}
+func monitorComponents() {
+	for {
+		// Sort solList by TimeInteraktion
+		sortedList := sortSolListByTimeInteraktion()
+
+		if len(sortedList) == 0 {
+			time.Sleep(60 * time.Second)
+			continue
+		}
+
+		// Get the earliest TimeInteraktion and add 60 seconds
+		earliestTime := sortedList[0].TimeInteraktion
+		waitTime := earliestTime.Add(60 * time.Second)
+		log.Info("Next check in 60 seconds", slog.Time("time", waitTime))
+
+		// Wait until the waitTime
+		time.Sleep(time.Until(waitTime))
+
+		// Check if the earliest TimeInteraktion has changed
+		if sortedList[0].TimeInteraktion != earliestTime {
+			continue
+		}
+
+		// Send request to the component
+		err := sendRequestsToActiveComponents(sortedList[0].ComUUID)
+		if err != nil {
+			log.Error("Error sending request to component", slog.String("error", err.Error()))
 		}
 	}
+}
+
+func sortSolListByTimeInteraktion() []ComponentEntry {
+	var sortedList []ComponentEntry
+	for _, entry := range solList {
+		sortedList = append(sortedList, entry)
+	}
+
+	sort.Slice(sortedList, func(i, j int) bool {
+		return sortedList[i].TimeInteraktion.Before(sortedList[j].TimeInteraktion)
+	})
+
+	return sortedList
 }
 
 func sendRequestsToActiveComponents(uuid int) error {
