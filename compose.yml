@@ -12,6 +12,9 @@ services:
     tty: true
     networks:
       vs-network:
+    deploy:
+      mode: replicated
+      replicas: 3
 
 networks:
   vs-network:
