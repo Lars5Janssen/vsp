@@ -283,6 +283,7 @@ func disconnectFromStar(response con.RestIn) con.RestOut {
 		return con.RestOut{StatusCode: http.StatusUnauthorized}
 	}
 
+	setRunComponentThread(false)
 	log.Info("Disconnecting from Star")
 	fmt.Printf("Disconnecting from Star after request from Sol.\n")
 	return con.RestOut{StatusCode: http.StatusOK}
