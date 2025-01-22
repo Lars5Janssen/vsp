@@ -181,7 +181,9 @@ func monitorComponents() {
 func sortSolListByTimeInteraktion() []ComponentEntry {
 	var sortedList []ComponentEntry
 	for _, entry := range solList {
-		sortedList = append(sortedList, entry)
+		if entry.ActiveStatus == utils.Active {
+			sortedList = append(sortedList, entry)
+		}
 	}
 
 	sort.Slice(sortedList, func(i, j int) bool {
@@ -204,6 +206,7 @@ func sendRequestsToActiveComponents(uuid int) error {
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Error("Failed to send GET request", slog.String("error", err.Error()))
+		log.Info("Component is disconnected", slog.Int("uuid", uuid))
 		entry.ActiveStatus = utils.Disconnected
 	}
 	if resp != nil {
@@ -216,6 +219,7 @@ func sendRequestsToActiveComponents(uuid int) error {
 
 		if resp.StatusCode != http.StatusOK {
 			log.Error("Received non-OK response", slog.Int("statusCode", resp.StatusCode))
+			log.Info("Component is disconnected", slog.Int("uuid", uuid))
 			entry.ActiveStatus = utils.Disconnected
 			entry.Status = strconv.Itoa(resp.StatusCode)
 		} else {
@@ -225,6 +229,7 @@ func sendRequestsToActiveComponents(uuid int) error {
 			if err != nil {
 				log.Error("Failed to decode response body", slog.String("error", err.Error()))
 				entry.Status = strconv.Itoa(resp.StatusCode)
+				log.Info("Component is disconnected", slog.Int("uuid", uuid))
 				entry.ActiveStatus = utils.Disconnected
 			} else {
 				entry.Status = RequestModel.STATUS
@@ -389,6 +394,7 @@ func disconnectComponentFromStar(request con.RestIn) con.RestOut {
 	}
 	// Update the active status of the component
 	if entry, exists := solList[registerRequestModel.COMPONENT]; exists {
+		log.Info("Component has left", slog.Int("uuid", entry.ComUUID))
 		entry.ActiveStatus = utils.Left
 		entry.TimeInteraktion = time.Now()
 		solList[registerRequestModel.COMPONENT] = entry
