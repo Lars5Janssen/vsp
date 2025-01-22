@@ -35,7 +35,8 @@ func main() {
 	// Logger
 	// Open or create a log file
 	// TODO not nice with the dot
-	fileName := "./app/logs/app.log"
+	// Mit punkt docker unter windows ohne punkt
+	fileName := "/app/logs/app.log"
 	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		fmt.Printf("Failed to open log file: %v\n", err)
@@ -50,8 +51,7 @@ func main() {
 	// Set up log
 	lvl := new(slog.LevelVar)
 	lvl.Set(slog.LevelDebug)
-	// log := slog.New(slog.NewTextHandler(file, &slog.HandlerOptions{
-	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+	log := slog.New(slog.NewTextHandler(file, &slog.HandlerOptions{
 		Level: lvl,
 	}))
 

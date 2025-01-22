@@ -1,7 +1,6 @@
 package component
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -495,22 +494,34 @@ func forwardDeletingMessages(request con.RestIn) con.RestOut {
 
 func sendMessageToSol(message interface{}, url string, requestType string) interface{} {
 	log.Info("Sending Message to SOL")
+	var client = &http.Client{}
+	var resp *http.Response
+	var req *http.Request
 
-	messageToSend, err := json.Marshal(message)
-	if err != nil {
-		log.Error("Error while marshalling data", slog.String("error", err.Error()))
-		return con.RestOut{
-			StatusCode: http.StatusConflict,
-			Body:       gin.H{"error": "Error while marshalling data"},
+	if message != nil {
+		messageToSend, err := json.Marshal(message)
+		if err != nil {
+			log.Error("Error while marshalling data", slog.String("error", err.Error()))
+			return con.RestOut{StatusCode: http.StatusConflict, Body: gin.H{"error": "Error while marshalling data"}}
 		}
-	}
 
-	req, err := http.NewRequest(requestType, url, bytes.NewBuffer(messageToSend))
-	if err != nil {
-		log.Error("Failed to create "+requestType+" request", slog.String("error", err.Error()))
-		return con.RestOut{StatusCode: http.StatusConflict, Body: gin.H{"error": err.Error()}}
+		// Build Json Request
+		req, err = http.NewRequest(requestType, url, strings.NewReader(string(messageToSend)))
+		if err != nil {
+			log.Error("Failed to create "+requestType+" request", slog.String("error", err.Error()))
+			return con.RestOut{StatusCode: http.StatusConflict, Body: gin.H{"error": err.Error()}}
+		}
+		req.Header.Set("Content-Type", "application/json")
+	} else {
+		var err error
+		// Build text/plain Request
+		req, err = http.NewRequest(requestType, url, nil)
+		if err != nil {
+			log.Error("Failed to create "+requestType+" request", slog.String("error", err.Error()))
+			return con.RestOut{StatusCode: http.StatusConflict, Body: gin.H{"error": err.Error()}}
+		}
+		req.Header.Set("Content-Type", "text/plain")
 	}
-	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -523,11 +534,6 @@ func sendMessageToSol(message interface{}, url string, requestType string) inter
 	}
 
 	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Error("Failed to read response body", slog.String("error", err.Error()))
-		return con.RestOut{StatusCode: http.StatusBadRequest, Body: gin.H{"error": err.Error()}}
-	}
-
 	var respBody interface{}
 	err = json.Unmarshal(body, &respBody)
 
